@@ -260,6 +260,20 @@ export function Hero() {
   const titleY = useTransform(scrollYProgress, [0.62, 0.72], [0, -50]);
   const titleScale = useTransform(scrollYProgress, [0.62, 0.72], [1, 0.95]);
 
+  const titleOpacityFromDome = useTransform(autoProgress, [0.15, 0.25], [1, 0.6]);
+
+  const titleOpacity = useTransform(
+    [titleOpacityScroll, titleOpacityFromDome],
+    ([scrollOp, domeOp]: number[]) => scrollOp * domeOp
+  );
+
+  const titleBlockYFromDome = useTransform(autoProgress, [0.12, 0.25], [0, -110]);
+
+  const titleBlockY = useTransform(
+    [titleY, titleBlockYFromDome],
+    ([scrollY, domeY]: number[]) => scrollY + domeY
+  );
+
   const subtitleY = useTransform(autoProgress, [0.15, 0.25], [20, 0]);
 
   const subtitleOpacity = useTransform(
@@ -361,46 +375,58 @@ export function Hero() {
           className="hero__tokyo-dome-photo absolute top-[62%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[82%] md:w-[56%] max-w-[900px] flex justify-center z-10 pointer-events-none"
           style={{ scale: domeScale, opacity: domeOpacity }}
         >
-          <div
-            className="relative w-full aspect-[16/9] overflow-hidden rounded-[12px]"
-            style={{
-              maskImage: "radial-gradient(ellipse at center, black 88%, transparent 100%)",
-              WebkitMaskImage: "radial-gradient(ellipse at center, black 88%, transparent 100%)",
-            }}
-          >
-            <img
-              src={tokyoDomePhoto}
-              alt="Tokyo Dome"
-              className="hero__tokyo-dome-image w-full h-full object-cover saturate-[0.85] brightness-[0.88] contrast-[1.08]"
-            />
+          <div className="relative w-full aspect-[16/9]">
+            <div
+              className="relative w-full h-full"
+              style={{
+                maskImage:
+                  "radial-gradient(ellipse 100% 92% at 50% 52%, black 48%, rgba(0,0,0,0.75) 68%, transparent 92%)",
+                WebkitMaskImage:
+                  "radial-gradient(ellipse 100% 92% at 50% 52%, black 48%, rgba(0,0,0,0.75) 68%, transparent 92%)",
+              }}
+            >
+              <img
+                src={tokyoDomePhoto}
+                alt="Tokyo Dome"
+                className="hero__tokyo-dome-image w-full h-full object-cover saturate-[0.85] brightness-[0.88] contrast-[1.08]"
+              />
+
+              <div
+                className="absolute inset-0 backdrop-blur-[3px] pointer-events-none"
+                style={{
+                  maskImage: "radial-gradient(ellipse at center, transparent 58%, black 100%)",
+                  WebkitMaskImage: "radial-gradient(ellipse at center, transparent 58%, black 100%)",
+                }}
+              />
+
+              <div className="absolute inset-0 bg-[#020513] mix-blend-overlay opacity-35 pointer-events-none" />
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_52%,#050505_100%)] opacity-55 pointer-events-none" />
+              <div className="absolute inset-0 shadow-[inset_0_0_56px_24px_#050505] pointer-events-none" />
+
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[68%] h-[55%] bg-blue-500/12 blur-[45px] mix-blend-screen pointer-events-none" />
+
+              <motion.div
+                className="absolute bottom-[12%] left-1/2 -translate-x-1/2 w-[62%] h-[36%] bg-blue-400 blur-[36px] mix-blend-screen pointer-events-none"
+                style={{ opacity: glowGlass }}
+              />
+
+              <motion.div
+                className="absolute top-[18%] left-1/2 -translate-x-1/2 w-[56%] h-[28%] bg-blue-200 blur-[38px] mix-blend-screen pointer-events-none"
+                style={{ opacity: glowRoof }}
+              />
+
+              <motion.div
+                className="absolute inset-0 bg-blue-400 blur-[45px] mix-blend-screen pointer-events-none"
+                style={{ opacity: glowFlash }}
+              />
+            </div>
 
             <div
-              className="absolute inset-0 backdrop-blur-[3px] pointer-events-none"
+              className="absolute inset-0 pointer-events-none"
               style={{
-                maskImage: "radial-gradient(ellipse at center, transparent 72%, black 100%)",
-                WebkitMaskImage: "radial-gradient(ellipse at center, transparent 72%, black 100%)",
+                background:
+                  "radial-gradient(ellipse at center, transparent 38%, rgba(5,5,5,0.72) 66%, #050505 88%)",
               }}
-            />
-
-            <div className="absolute inset-0 bg-[#020513] mix-blend-overlay opacity-35 pointer-events-none" />
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_70%,#050505_100%)] opacity-28 pointer-events-none" />
-            <div className="absolute inset-0 shadow-[inset_0_0_40px_10px_#050505] pointer-events-none" />
-
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[68%] h-[55%] bg-blue-500/12 blur-[45px] mix-blend-screen pointer-events-none" />
-
-            <motion.div
-              className="absolute bottom-[12%] left-1/2 -translate-x-1/2 w-[62%] h-[36%] bg-blue-400 blur-[36px] mix-blend-screen pointer-events-none"
-              style={{ opacity: glowGlass }}
-            />
-
-            <motion.div
-              className="absolute top-[18%] left-1/2 -translate-x-1/2 w-[56%] h-[28%] bg-blue-200 blur-[38px] mix-blend-screen pointer-events-none"
-              style={{ opacity: glowRoof }}
-            />
-
-            <motion.div
-              className="absolute inset-0 bg-blue-400 blur-[45px] mix-blend-screen pointer-events-none"
-              style={{ opacity: glowFlash }}
             />
           </div>
         </motion.div>
@@ -444,12 +470,12 @@ export function Hero() {
         <motion.div
           className="hero__title-wrapper absolute top-[20%] md:top-[25%] z-30 flex flex-col items-center text-center px-4 w-full"
           style={{
-            opacity: titleOpacityScroll,
-            y: titleY,
+            opacity: titleOpacity,
+            y: titleBlockY,
             scale: titleScale,
           }}
         >
-          <h1 className="hero__title js-hero-title text-white font-bold tracking-[0.15em] leading-[1.2] text-[48px] md:text-[72px] lg:text-[96px] drop-shadow-2xl">
+          <h1 className="hero__title js-hero-title text-white font-bold tracking-[0.15em] leading-[1.2] text-[42px] md:text-[64px] lg:text-[84px] drop-shadow-2xl">
             推しが動かす人流。
           </h1>
 
