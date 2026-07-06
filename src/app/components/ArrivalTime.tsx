@@ -1,8 +1,40 @@
 import React, { useRef } from "react";
 import { motion, useScroll, useTransform, MotionValue } from "motion/react";
-import tokyoDomeAerial from "../../imports/__.jpeg";
+import tokyoDomeMapNorth from "../../imports/tokyo-dome-map-north.jpeg";
 
-const DOME_CENTER = { x: 500, y: 500 };
+const MAP_BASE_SIZE = { width: 2881, height: 1921 };
+const TOKYO_DOME_POINT = {
+  x: 1467 / MAP_BASE_SIZE.width,
+  y: 750 / MAP_BASE_SIZE.height,
+};
+const MAP_OBJECT_POSITION = `center ${Math.round(TOKYO_DOME_POINT.y * 100)}%`;
+
+/** Map ratio → SVG viewBox coords (1000×1000 overlay aligned to aerial photo). */
+function mapRatioToSvgCenter(rx: number, ry: number, anchorY = ry) {
+  const viewport = { w: 1920, h: 1080 };
+  const viewBox = 1000;
+  const scale = viewport.h / MAP_BASE_SIZE.height;
+  const displayW = MAP_BASE_SIZE.width * scale;
+  const offX = (viewport.w - displayW) / 2;
+  const screenX = offX + rx * MAP_BASE_SIZE.width * scale;
+  const screenY = viewport.h / 2 + (ry - anchorY) * MAP_BASE_SIZE.height * scale;
+  const svgSize = Math.min(viewBox, viewport.w, viewport.h);
+  const svgLeft = viewport.w / 2 - svgSize / 2;
+  const svgTop = viewport.h / 2 - svgSize / 2;
+  return {
+    x: ((screenX - svgLeft) / svgSize) * viewBox,
+    y: ((screenY - svgTop) / svgSize) * viewBox,
+  };
+}
+
+const DOME_CENTER = mapRatioToSvgCenter(TOKYO_DOME_POINT.x, TOKYO_DOME_POINT.y);
+
+/** Glow circle center — shifted ~35px right to align with Tokyo Dome on aerial photo. */
+const DOME_GLOW_X_OFFSET = 35;
+const DOME_GLOW_CENTER = {
+  x: DOME_CENTER.x + DOME_GLOW_X_OFFSET,
+  y: DOME_CENTER.y,
+};
 
 const arrivalProgressData = {
   fruitsZipper: [
@@ -162,34 +194,66 @@ const SwarmGroup = ({
   </motion.g>
 );
 
+const COMP_DOT_RADIUS = {
+  small: 5.9,
+  normal: 7.0,
+  influx: 7.8,
+} as const;
+
+type CompDotGlowTier = "soft" | "normal" | "strong";
+
+function compDotGlowFilter(color: string, tier: CompDotGlowTier) {
+  if (tier === "soft") {
+    return `drop-shadow(0 0 12px ${color}) drop-shadow(0 0 5px ${color})`;
+  }
+  if (tier === "normal") {
+    return `drop-shadow(0 0 14px ${color}) drop-shadow(0 0 7px ${color})`;
+  }
+  return `drop-shadow(0 0 18px ${color}) drop-shadow(0 0 10px ${color})`;
+}
+
+function mapPeakBoost(profileKey: "fz" | "riize" | "vaundy", progress: number) {
+  const step = Math.min(Math.floor(progress * 8), 8);
+  if (profileKey === "fz" && (step === 5 || step === 6)) return 1.2;
+  if (profileKey === "riize" && step === 7) return 1.22;
+  if (profileKey === "vaundy" && (step === 6 || step === 7)) return 1.25;
+  return 1;
+}
+
 const CompDot = ({
   path,
   color,
   minDur = 2,
   maxDur = 5,
-  className
+  className,
+  radius = COMP_DOT_RADIUS.normal,
+  glowTier = "normal",
+  maxOpacity = 0.9,
 }: {
   path: string;
   color: string;
   minDur?: number;
   maxDur?: number;
   className?: string;
+  radius?: number;
+  glowTier?: CompDotGlowTier;
+  maxOpacity?: number;
 }) => {
   const duration = minDur + Math.random() * (maxDur - minDur);
   const delay = Math.random() * 3;
 
   return (
     <motion.circle
-      r="3.9"
+      r={radius}
       fill={color}
       className={className}
       // @ts-ignore
       style={{
         offsetPath: `path('${path}')`,
         offsetRotate: "auto",
-        filter: `drop-shadow(0 0 10px ${color}) drop-shadow(0 0 4px ${color})`
+        filter: compDotGlowFilter(color, glowTier),
       }}
-      animate={{ offsetDistance: ["0%", "100%"], opacity: [0, 0.82, 0] }}
+      animate={{ offsetDistance: ["0%", "100%"], opacity: [0, maxOpacity, 0] }}
       transition={{ duration, repeat: Infinity, ease: "linear", delay }}
     />
   );
@@ -201,7 +265,10 @@ const CompSwarmGroup = ({
   opacity,
   minDur,
   maxDur,
-  className
+  className,
+  radius = COMP_DOT_RADIUS.normal,
+  glowTier = "normal",
+  maxOpacity = 0.9,
 }: {
   paths: string[];
   color: string;
@@ -209,6 +276,9 @@ const CompSwarmGroup = ({
   minDur: number;
   maxDur: number;
   className: string;
+  radius?: number;
+  glowTier?: CompDotGlowTier;
+  maxOpacity?: number;
 }) => (
   <motion.g style={{ opacity }}>
     {paths.map((p, i) => (
@@ -219,6 +289,9 @@ const CompSwarmGroup = ({
         minDur={minDur}
         maxDur={maxDur}
         className={className}
+        radius={radius}
+        glowTier={glowTier}
+        maxOpacity={maxOpacity}
       />
     ))}
   </motion.g>
@@ -228,55 +301,65 @@ const ArtistDomeGlow = ({
   progress,
   color,
   data,
-  stepped = false
+  stepped = false,
+  center = DOME_GLOW_CENTER,
+  sizeScale = 1,
 }: {
   progress: MotionValue<number>;
   color: string;
   data: number[];
   stepped?: boolean;
+  center?: { x: number; y: number };
+  sizeScale?: number;
 }) => {
   const percent = stepped
     ? useSteppedPercent(progress, data)
     : useInterpolatedPercent(progress, data);
 
   const glowOpacity = useTransform(percent, (val) => {
-    if (val < 10) return 0.2;
-    if (val < 30) return 0.4;
+    if (val < 10) return 0.25;
+    if (val < 30) return 0.45;
     if (val < 60) return 0.6;
-    if (val < 85) return 0.8;
-    return 1.0;
+    if (val < 85) return 0.75;
+    return 0.9;
   });
 
   const glowRadius = useTransform(percent, (val) => {
-    if (val < 10) return 32;
-    if (val < 30) return 35;
-    if (val < 60) return 40;
-    if (val < 85) return 45;
-    if (val < 100) return 50;
-    return 65;
+    let r: number;
+    if (val < 10) r = 64;
+    else if (val < 30) r = 70;
+    else if (val < 60) r = 80;
+    else if (val < 85) r = 90;
+    else if (val < 100) r = 100;
+    else r = 130;
+    return r * sizeScale;
   });
 
   const blurAmount = useTransform(percent, (val) => {
-    if (val < 10) return 10;
-    if (val < 30) return 15;
-    if (val < 60) return 20;
-    if (val < 85) return 25;
-    if (val < 100) return 30;
-    return 40;
+    if (val < 10) return 12;
+    if (val < 30) return 18;
+    if (val < 60) return 24;
+    if (val < 85) return 30;
+    if (val < 100) return 36;
+    return 48;
   });
 
+  const gradientId =
+    color === "#00D1FF" ? "dome-glow-fz" : color === "#FF4EDB" ? "dome-glow-riize" : "dome-glow-vaundy";
+
   return (
-    <motion.circle
-      cx="500"
-      cy="500"
-      r={glowRadius}
-      fill={color}
-      style={{
-        opacity: glowOpacity,
-        filter: useTransform(blurAmount, b => `blur(${b}px)`)
-      }}
-      className="arrival-time__tokyo-dome-glow"
-    />
+    <motion.g style={{ opacity: glowOpacity }} className="arrival-time__tokyo-dome-glow">
+      <motion.circle
+        cx={center.x}
+        cy={center.y}
+        r={glowRadius}
+        fill={`url(#${gradientId})`}
+        stroke="none"
+        style={{
+          filter: useTransform(blurAmount, (b) => `blur(${b * 0.35}px)`),
+        }}
+      />
+    </motion.g>
   );
 };
 
@@ -328,26 +411,11 @@ const CapacityIndicator = ({
 const BaseMap = ({ children }: { children: React.ReactNode }) => (
   <svg viewBox="0 0 1000 1000" className="w-full h-full arrival-time__tokyo-dome-map">
     <g className="stroke-[#222] fill-transparent" strokeWidth="1.5">
-      <path d="M 500 1000 L 500 500" />
-      <path d="M 300 0 L 500 500" />
-      <path d="M 1000 300 L 500 500" />
-      <path d="M 0 600 L 500 500" />
-      <circle cx="500" cy="500" r="150" strokeDasharray="4 4" />
-      <circle cx="500" cy="500" r="300" strokeDasharray="4 4" />
-      <circle cx="500" cy="500" r="450" strokeDasharray="4 4" />
+      <path d={`M ${DOME_CENTER.x} 1000 L ${DOME_CENTER.x} ${DOME_CENTER.y}`} />
+      <path d={`M 300 0 L ${DOME_CENTER.x} ${DOME_CENTER.y}`} />
+      <path d={`M 1000 300 L ${DOME_CENTER.x} ${DOME_CENTER.y}`} />
+      <path d={`M 0 600 L ${DOME_CENTER.x} ${DOME_CENTER.y}`} />
     </g>
-
-    <text x="450" y="850" fill="#555" fontSize="20" letterSpacing="0.1em" className="arrival-time__station-label--suidobashi font-mono">
-      水道橋駅
-    </text>
-    <text x="350" y="200" fill="#555" fontSize="20" letterSpacing="0.1em" className="arrival-time__station-label--korakuen font-mono">
-      後楽園駅
-    </text>
-    <text x="750" y="250" fill="#555" fontSize="20" letterSpacing="0.1em" className="arrival-time__station-label--kasuga font-mono">
-      春日駅
-    </text>
-
-    <circle cx="500" cy="500" r="30" fill="#111" stroke="#444" strokeWidth="2" className="arrival-time__tokyo-dome-base" />
 
     {children}
   </svg>
@@ -372,9 +440,6 @@ const SwarmLogic = ({
   const manyOp = useTransform(percent, [0, 60, 85, 100], [0, 0, 1, 1]);
   const maxOp = useTransform(percent, [0, 85, 100], [0, 0, 1]);
 
-  const heatId = className.split("--")[1];
-  const heatOp = useTransform(percent, [0, 10, 30, 60, 85, 100], [0, 0.1, 0.2, 0.4, 0.7, 1]);
-
   return (
     <>
       <SwarmGroup paths={VERY_FEW_PATHS} color={color} opacity={veryFewOp} minDur={4} maxDur={6} className={className} />
@@ -382,15 +447,6 @@ const SwarmLogic = ({
       <SwarmGroup paths={MODERATE_PATHS} color={color} opacity={moderateOp} minDur={2} maxDur={4} className={className} />
       <SwarmGroup paths={MANY_PATHS} color={color} opacity={manyOp} minDur={1.5} maxDur={3} className={className} />
       <SwarmGroup paths={MAX_PATHS} color={color} opacity={maxOp} minDur={1} maxDur={2} className={className} />
-
-      <motion.circle
-        cx="500"
-        cy="500"
-        r="150"
-        fill={`url(#heat-${heatId})`}
-        style={{ opacity: heatOp }}
-        className={`arrival-time__heat-layer--${heatId}`}
-      />
 
       <ArtistDomeGlow progress={progress} color={color} data={data} />
     </>
@@ -415,27 +471,125 @@ const S06_DATA = {
   riize: [1.8, 8.8, 9.7, 14.5, 18.0, 27.6, 40.3, 76.3, 100],
 };
 
+type ArrivalProfileStep = { label: string; hourly: number; cumulative: number };
+
+const ARRIVAL_TIME_PROFILE: Record<"fz" | "riize" | "vaundy", ArrivalProfileStep[]> = {
+  fz: [
+    { label: "8時間前", hourly: 1.8, cumulative: 1.8 },
+    { label: "7時間前", hourly: 1.5, cumulative: 3.3 },
+    { label: "6時間前", hourly: 6.1, cumulative: 9.4 },
+    { label: "5時間前", hourly: 9.7, cumulative: 19.1 },
+    { label: "4時間前", hourly: 4.8, cumulative: 23.9 },
+    { label: "3時間前", hourly: 22.4, cumulative: 46.3 },
+    { label: "2時間前", hourly: 23.8, cumulative: 70.1 },
+    { label: "1時間前", hourly: 14.4, cumulative: 84.5 },
+    { label: "開演", hourly: 15.5, cumulative: 100 },
+  ],
+  riize: [
+    { label: "8時間前", hourly: 1.8, cumulative: 1.8 },
+    { label: "7時間前", hourly: 7.0, cumulative: 8.8 },
+    { label: "6時間前", hourly: 0.9, cumulative: 9.7 },
+    { label: "5時間前", hourly: 4.8, cumulative: 14.5 },
+    { label: "4時間前", hourly: 3.5, cumulative: 18.0 },
+    { label: "3時間前", hourly: 9.6, cumulative: 27.6 },
+    { label: "2時間前", hourly: 12.7, cumulative: 40.3 },
+    { label: "1時間前", hourly: 36.0, cumulative: 76.3 },
+    { label: "開演", hourly: 23.7, cumulative: 100 },
+  ],
+  vaundy: [
+    { label: "8時間前", hourly: 2.5, cumulative: 2.5 },
+    { label: "7時間前", hourly: 2.3, cumulative: 4.8 },
+    { label: "6時間前", hourly: 1.5, cumulative: 6.3 },
+    { label: "5時間前", hourly: 1.0, cumulative: 7.3 },
+    { label: "4時間前", hourly: 1.7, cumulative: 9.0 },
+    { label: "3時間前", hourly: 2.7, cumulative: 11.7 },
+    { label: "2時間前", hourly: 23.4, cumulative: 35.1 },
+    { label: "1時間前", hourly: 53.4, cumulative: 88.5 },
+    { label: "開演", hourly: 11.5, cumulative: 100 },
+  ],
+};
+
+function useSteppedProfileField(
+  progress: MotionValue<number>,
+  profile: ArrivalProfileStep[],
+  field: "cumulative" | "hourly"
+) {
+  return useTransform(progress, (p) => {
+    const steps = profile.length - 1;
+    const i = Math.min(Math.floor(p * steps), steps);
+    return profile[i][field];
+  });
+}
+
+function mapCumulativeToBaseOpacity(cumulative: number) {
+  if (cumulative <= 10) return 0.28 + (cumulative / 10) * 0.07;
+  if (cumulative <= 25) return 0.38 + ((cumulative - 10) / 15) * 0.12;
+  if (cumulative <= 50) return 0.55 + ((cumulative - 25) / 25) * 0.15;
+  if (cumulative <= 75) return 0.75 + ((cumulative - 50) / 25) * 0.13;
+  return 0.9 + ((cumulative - 75) / 25) * 0.1;
+}
+
+function mapHourlyToInfluxOpacity(hourly: number, baseOpacity: number) {
+  if (hourly < 5) return baseOpacity * 0.1;
+  if (hourly < 12) return baseOpacity * (0.1 + ((hourly - 5) / 7) * 0.22);
+  if (hourly < 20) return baseOpacity * (0.32 + ((hourly - 12) / 8) * 0.28);
+  if (hourly < 30) return baseOpacity * (0.6 + ((hourly - 20) / 10) * 0.18);
+  if (hourly < 50) return baseOpacity * (0.78 + ((hourly - 30) / 20) * 0.14);
+  return baseOpacity * Math.min(1.15, 0.92 + ((hourly - 50) / 10) * 0.23);
+}
+
+function mapEarlyArtistBoost(
+  profileKey: "fz" | "riize" | "vaundy",
+  progress: number,
+  cumulative: number
+) {
+  const step = Math.min(Math.floor(progress * 8), 8);
+
+  if (profileKey === "fz") {
+    if (step >= 2 && step <= 3) return 1.18;
+    if (step === 4) return 1.14;
+    if (step === 5) return 1.28;
+    if (step === 6) return 1.22;
+  }
+
+  if (profileKey === "riize") {
+    if (step === 1) return 1.25;
+    if (step >= 4 && step <= 5) return 1.1 + (cumulative / 30) * 0.12;
+  }
+
+  if (profileKey === "vaundy") {
+    if (step <= 5) return 0.92;
+    if (step === 6) return 1.18;
+    if (step === 7) return 1.3;
+  }
+
+  return 1;
+}
+
 const COMP_PATHS = {
   fz: {
-    veryFew: generateSwarmPaths(10, 400, 650),
-    small: generateSwarmPaths(15, 300, 600),
-    moderate: generateSwarmPaths(25, 200, 550),
-    many: generateSwarmPaths(40, 150, 500),
-    max: generateSwarmPaths(60, 100, 450),
+    veryFew: generateSwarmPaths(14, 400, 650),
+    small: generateSwarmPaths(20, 300, 600),
+    moderate: generateSwarmPaths(26, 200, 550),
+    many: generateSwarmPaths(42, 150, 500),
+    max: generateSwarmPaths(58, 100, 450),
+    influx: generateSwarmPaths(32, 250, 520),
   },
   vaundy: {
     veryFew: generateSwarmPaths(10, 400, 650),
-    small: generateSwarmPaths(15, 300, 600),
-    moderate: generateSwarmPaths(25, 200, 550),
-    many: generateSwarmPaths(40, 150, 500),
-    max: generateSwarmPaths(60, 100, 450),
+    small: generateSwarmPaths(14, 300, 600),
+    moderate: generateSwarmPaths(20, 200, 550),
+    many: generateSwarmPaths(36, 150, 500),
+    max: generateSwarmPaths(52, 100, 450),
+    influx: generateSwarmPaths(30, 250, 520),
   },
   riize: {
-    veryFew: generateSwarmPaths(10, 400, 650),
-    small: generateSwarmPaths(15, 300, 600),
-    moderate: generateSwarmPaths(25, 200, 550),
+    veryFew: generateSwarmPaths(12, 400, 650),
+    small: generateSwarmPaths(18, 300, 600),
+    moderate: generateSwarmPaths(24, 200, 550),
     many: generateSwarmPaths(40, 150, 500),
-    max: generateSwarmPaths(60, 100, 450),
+    max: generateSwarmPaths(56, 100, 450),
+    influx: generateSwarmPaths(30, 250, 520),
   },
 };
 
@@ -448,11 +602,7 @@ const MiniDomeBase = ({ children }: { children: React.ReactNode }) => (
       <path d="M 220 0 L 500 500" />
       <path d="M 1000 200 L 500 500" />
       <path d="M 0 700 L 500 500" />
-      <circle cx="500" cy="500" r="150" strokeDasharray="4 8" opacity="0.6" />
-      <circle cx="500" cy="500" r="300" strokeDasharray="4 8" opacity="0.35" />
-      <circle cx="500" cy="500" r="450" strokeDasharray="4 8" opacity="0.15" />
     </g>
-    <circle cx="500" cy="500" r="26" fill="#05050c" stroke="#2a2a3a" strokeWidth="2" />
     {children}
   </svg>
 );
@@ -462,49 +612,94 @@ const CompSwarmLogic = ({
   data,
   color,
   className,
-  paths
+  paths,
+  profileKey,
 }: {
   progress: MotionValue<number>;
   data: number[];
   color: string;
   className: string;
   paths: CompPaths;
+  profileKey: "fz" | "riize" | "vaundy";
 }) => {
-  const percent = useSteppedPercent(progress, data);
+  const profile = ARRIVAL_TIME_PROFILE[profileKey];
+  const cumulative = useSteppedProfileField(progress, profile, "cumulative");
+  const hourly = useSteppedProfileField(progress, profile, "hourly");
 
-  const veryFewOp = useTransform(percent, [0, 5, 10, 100], [0, 1, 1, 1]);
-  const smallOp = useTransform(percent, [0, 10, 30, 100], [0, 0, 1, 1]);
-  const modOp = useTransform(percent, [0, 30, 60, 100], [0, 0, 1, 1]);
-  const manyOp = useTransform(percent, [0, 60, 85, 100], [0, 0, 1, 1]);
-  const maxOp = useTransform(percent, [0, 85, 100], [0, 0, 1]);
+  const baseOpacity = useTransform(cumulative, mapCumulativeToBaseOpacity);
 
-  const heatOp = useTransform(percent, [0, 10, 30, 60, 85, 100], [0, 0.12, 0.25, 0.42, 0.60, 0.78]);
-  const bgGlowOp = useTransform(percent, [0, 20, 60, 100], [0, 0.05, 0.10, 0.15]);
+  const earlyBoost = useTransform([progress, cumulative], ([p, cum]) =>
+    mapEarlyArtistBoost(profileKey, p as number, cum as number)
+  );
 
-  const heatId = className.split("--")[1];
-  const glowSuffix = heatId === "fz" ? "fruits-zipper" : heatId;
+  const veryFewOp = useTransform([baseOpacity, earlyBoost], ([b, e]) =>
+    Math.min(1, Math.max(0.28, (b as number) * (e as number)))
+  );
+
+  const smallVis = useTransform(cumulative, [0, 8, 20, 100], [0.45, 0.72, 1, 1]);
+  const modVis = useTransform(cumulative, [0, 18, 40, 100], [0, 0.55, 1, 1]);
+  const manyVis = useTransform(cumulative, [0, 40, 68, 100], [0, 0, 1, 1]);
+  const maxVis = useTransform(cumulative, [0, 65, 82, 100], [0, 0, 1, 1]);
+
+  const smallOp = useTransform([baseOpacity, smallVis, earlyBoost], ([b, v, e]) =>
+    Math.min(1, (b as number) * (v as number) * (e as number))
+  );
+  const modOp = useTransform([baseOpacity, modVis, earlyBoost], ([b, v, e]) =>
+    Math.min(1, (b as number) * (v as number) * (e as number))
+  );
+  const manyOp = useTransform([baseOpacity, manyVis, earlyBoost], ([b, v, e]) =>
+    Math.min(1, (b as number) * (v as number) * (e as number))
+  );
+  const maxOp = useTransform([baseOpacity, maxVis, earlyBoost], ([b, v, e]) =>
+    Math.min(1, (b as number) * (v as number) * (e as number))
+  );
+
+  const influxOp = useTransform([hourly, baseOpacity], ([h, b]) =>
+    mapHourlyToInfluxOpacity(h as number, b as number)
+  );
+
+  const peakBoost = useTransform(progress, (p) => mapPeakBoost(profileKey, p));
+
+  const influxOpBoosted = useTransform([influxOp, peakBoost], ([op, boost]) =>
+    Math.min(1, (op as number) * (boost as number))
+  );
+
+  const manyOpBoosted = useTransform([manyOp, peakBoost, cumulative], ([op, boost, cum]) => {
+    const b = boost as number;
+    if (b <= 1) return op as number;
+    const mix = Math.min(1, ((cum as number) - 40) / 35);
+    return (op as number) * (1 + (b - 1) * mix * 0.35);
+  });
+
+  const maxOpBoosted = useTransform([maxOp, peakBoost, cumulative], ([op, boost, cum]) => {
+    const b = boost as number;
+    if (b <= 1) return op as number;
+    const mix = Math.min(1, ((cum as number) - 65) / 25);
+    return Math.min(1, (op as number) * (1 + (b - 1) * mix * 0.45));
+  });
+
+  const glowPulse = useTransform([hourly, cumulative], ([h, c]) =>
+    0.62 + Math.min((h as number) / 55, 0.22) + ((c as number) / 100) * 0.12
+  );
 
   return (
     <>
-      <motion.circle
-        cx="500"
-        cy="500"
-        r="380"
-        fill={color}
-        className={`arrival-time__comparison-particle-glow--${glowSuffix}`}
-        style={{ opacity: bgGlowOp, filter: "blur(80px)" }}
-      />
+      <CompSwarmGroup paths={paths.veryFew} color={color} opacity={veryFewOp} minDur={4.5} maxDur={6.5} className={className} radius={COMP_DOT_RADIUS.small} glowTier="soft" maxOpacity={0.82} />
+      <CompSwarmGroup paths={paths.small} color={color} opacity={smallOp} minDur={3.5} maxDur={5.5} className={className} radius={COMP_DOT_RADIUS.small} glowTier="soft" maxOpacity={0.86} />
+      <CompSwarmGroup paths={paths.moderate} color={color} opacity={modOp} minDur={2.5} maxDur={4.5} className={className} radius={COMP_DOT_RADIUS.normal} glowTier="normal" maxOpacity={0.9} />
+      <CompSwarmGroup paths={paths.many} color={color} opacity={manyOpBoosted} minDur={1.8} maxDur={3.2} className={className} radius={COMP_DOT_RADIUS.normal} glowTier="normal" maxOpacity={0.92} />
+      <CompSwarmGroup paths={paths.max} color={color} opacity={maxOpBoosted} minDur={1.2} maxDur={2.2} className={className} radius={COMP_DOT_RADIUS.normal + 0.5} glowTier="normal" maxOpacity={0.95} />
+      <CompSwarmGroup paths={paths.influx} color={color} opacity={influxOpBoosted} minDur={0.9} maxDur={1.8} className={className} radius={COMP_DOT_RADIUS.influx} glowTier="strong" maxOpacity={1} />
 
-      <CompSwarmGroup paths={paths.veryFew} color={color} opacity={veryFewOp} minDur={4} maxDur={6} className={className} />
-      <CompSwarmGroup paths={paths.small} color={color} opacity={smallOp} minDur={3} maxDur={5} className={className} />
-      <CompSwarmGroup paths={paths.moderate} color={color} opacity={modOp} minDur={2} maxDur={4} className={className} />
-      <CompSwarmGroup paths={paths.many} color={color} opacity={manyOp} minDur={1.5} maxDur={3} className={className} />
-      <CompSwarmGroup paths={paths.max} color={color} opacity={maxOp} minDur={1} maxDur={2} className={className} />
-
-      <motion.circle cx="500" cy="500" r="150" fill={`url(#heat-${heatId})`} style={{ opacity: heatOp }} />
-
-      <motion.g opacity={0.70}>
-        <ArtistDomeGlow progress={progress} color={color} data={data} stepped />
+      <motion.g style={{ opacity: glowPulse }}>
+        <ArtistDomeGlow
+          progress={progress}
+          color={color}
+          data={data}
+          stepped
+          center={{ x: 500, y: 500 }}
+          sizeScale={0.5}
+        />
       </motion.g>
     </>
   );
@@ -539,7 +734,10 @@ const RaceTrackBar = ({
       </div>
 
       <div className="flex justify-between items-baseline mt-1.5">
-        <span className="text-white/30 text-[9px] tracking-[0.18em] font-mono select-none">
+        <span
+          className="text-[12px] md:text-[14px] tracking-[0.08em] font-semibold font-mono select-none"
+          style={{ color: "rgba(255,255,255,0.78)" }}
+        >
           累積来場率
         </span>
         <motion.span
@@ -566,7 +764,8 @@ const ComparisonDome = ({
   swarmClassName,
   domeClassName,
   percentClassName,
-  paths
+  paths,
+  profileKey,
 }: {
   title: string;
   insightLabel: string;
@@ -577,14 +776,18 @@ const ComparisonDome = ({
   domeClassName: string;
   percentClassName: string;
   paths: CompPaths;
+  profileKey: "fz" | "riize" | "vaundy";
 }) => {
-  const pct = useSteppedPercent(progress, data);
+  const profile = ARRIVAL_TIME_PROFILE[profileKey];
+  const cumulative = useSteppedProfileField(progress, profile, "cumulative");
 
-  const glowShadow = useTransform(pct, (v) => {
-    const alpha = Math.round((0.05 + (v / 100) * 0.22) * 255).toString(16).padStart(2, "0");
-    const blur = Math.round(6 + (v / 100) * 18);
+  const glowShadow = useTransform(cumulative, (v) => {
+    const alpha = Math.round((0.10 + (v / 100) * 0.28) * 255).toString(16).padStart(2, "0");
+    const blur = Math.round(10 + (v / 100) * 26);
     return `0 0 ${blur}px ${color}${alpha}`;
   });
+
+  const cardOpacity = useTransform(cumulative, (v) => 0.72 + (v / 100) * 0.24);
 
   return (
     <div className={`${domeClassName} flex-1 flex flex-col items-center gap-2 min-w-0`}>
@@ -604,7 +807,7 @@ const ComparisonDome = ({
 
       <motion.div
         className="relative w-full aspect-square rounded-xl overflow-hidden bg-[#04040b] border border-white/[0.05]"
-        style={{ boxShadow: glowShadow, opacity: 0.72 }}
+        style={{ boxShadow: glowShadow, opacity: cardOpacity }}
       >
         <MiniDomeBase>
           <CompSwarmLogic
@@ -613,11 +816,15 @@ const ComparisonDome = ({
             color={color}
             className={swarmClassName}
             paths={paths}
+            profileKey={profileKey}
           />
         </MiniDomeBase>
       </motion.div>
 
-      <p className="text-[9px] md:text-[10px] text-white/30 tracking-[0.22em] font-mono">
+      <p
+        className="text-[13px] md:text-[15px] font-semibold tracking-[0.1em] font-mono text-center leading-snug"
+        style={{ color: "rgba(255,255,255,0.75)" }}
+      >
         {insightLabel}
       </p>
     </div>
@@ -638,16 +845,22 @@ export function ArrivalTime() {
   const riizeSceneOp = useTransform(scrollYProgress, [0.25, 0.27, 0.38, 0.40], [0, 1, 1, 0]);
   const vaundySceneOp = useTransform(scrollYProgress, [0.40, 0.42, 0.53, 0.55], [0, 1, 1, 0]);
 
-  const compareOp = useTransform(scrollYProgress, [0.55, 0.57, 0.68, 0.70], [0, 1, 1, 0]);
-  const climaxOp = useTransform(scrollYProgress, [0.70, 0.72, 0.90, 0.95], [0, 1, 1, 0]);
+  const compareOp = useTransform(scrollYProgress, [0.55, 0.57, 0.96, 0.99], [0, 1, 1, 0]);
+  const climaxOp = useTransform(scrollYProgress, [0.97, 0.99, 0.995, 1], [0, 1, 1, 0]);
 
-  const mainMapOp = useTransform(scrollYProgress, [0, 0.53, 0.55, 0.70, 0.72, 1], [1, 1, 0, 0, 1, 1]);
+  const mainMapOp = useTransform(scrollYProgress, [0, 0.53, 0.55, 0.97, 0.99, 1], [1, 1, 0, 0, 1, 1]);
   const timelineUiOp = useTransform(scrollYProgress, [0.08, 0.1, 0.53, 0.55], [0, 1, 1, 0]);
 
   const fzTimeP = useTransform(scrollYProgress, [0.1, 0.25], [0, 1]);
   const riizeTimeP = useTransform(scrollYProgress, [0.25, 0.40], [0, 1]);
   const vaundyTimeP = useTransform(scrollYProgress, [0.40, 0.55], [0, 1]);
-  const compareTimeP = useTransform(scrollYProgress, [0.55, 0.68], [0, 1]);
+  const compareTimeP = useTransform(scrollYProgress, (p) => {
+    const start = 0.55;
+    const timeEnd = 0.82;
+    if (p <= start) return 0;
+    if (p >= timeEnd) return 1;
+    return (p - start) / (timeEnd - start);
+  });
 
   const maxTimeP = useTransform(scrollYProgress, () => 1);
 
@@ -682,15 +895,16 @@ export function ArrivalTime() {
   return (
     <section
       ref={containerRef}
-      className="section-arrival-time h-[600vh] relative bg-[#050505]"
+      className="section-arrival-time h-[900vh] relative bg-[#050505]"
       style={{ position: "relative" }}
     >
       <div className="sticky top-0 w-full h-[100vh] overflow-hidden flex items-center justify-center arrival-time__background">
         <img
-          src={tokyoDomeAerial}
+          src={tokyoDomeMapNorth}
           alt=""
           aria-hidden="true"
           className="arrival-time__map-bg absolute inset-0 w-full h-full object-cover"
+          style={{ objectPosition: MAP_OBJECT_POSITION }}
         />
 
         <div className="arrival-time__map-overlay absolute inset-0 bg-[#050505]/82" />
@@ -722,6 +936,24 @@ export function ArrivalTime() {
             <radialGradient id="heat-vaundy">
               <stop offset="0%" stopColor="#A6FF4D" stopOpacity="0.4" />
               <stop offset="100%" stopColor="#A6FF4D" stopOpacity="0" />
+            </radialGradient>
+            <radialGradient id="dome-glow-fz" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#00D1FF" stopOpacity="0.24" />
+              <stop offset="28%" stopColor="#00D1FF" stopOpacity="0.14" />
+              <stop offset="55%" stopColor="#00D1FF" stopOpacity="0.06" />
+              <stop offset="78%" stopColor="#00D1FF" stopOpacity="0" />
+            </radialGradient>
+            <radialGradient id="dome-glow-riize" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#FF4EDB" stopOpacity="0.24" />
+              <stop offset="28%" stopColor="#FF4EDB" stopOpacity="0.14" />
+              <stop offset="55%" stopColor="#FF4EDB" stopOpacity="0.06" />
+              <stop offset="78%" stopColor="#FF4EDB" stopOpacity="0" />
+            </radialGradient>
+            <radialGradient id="dome-glow-vaundy" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#A6FF4D" stopOpacity="0.24" />
+              <stop offset="28%" stopColor="#A6FF4D" stopOpacity="0.14" />
+              <stop offset="55%" stopColor="#A6FF4D" stopOpacity="0.06" />
+              <stop offset="78%" stopColor="#A6FF4D" stopOpacity="0" />
             </radialGradient>
           </defs>
         </svg>
@@ -798,7 +1030,9 @@ export function ArrivalTime() {
             FRUITS ZIPPER
           </h3>
           <p className="arrival-time__scene-copy text-white/90 text-lg tracking-widest leading-relaxed">
-            早くから集まり、<br />開演前の時間も楽しむ
+            開演の数時間前から来場が始まり、会場周辺で過ごすファンが目立つ。
+            <br />
+            ライブ前の時間も含めて、体験として楽しむ傾向が見られた。
           </p>
         </motion.div>
 
@@ -807,7 +1041,9 @@ export function ArrivalTime() {
             RIIZE
           </h3>
           <p className="arrival-time__scene-copy text-white/90 text-lg tracking-widest leading-relaxed">
-            遠くから、早くから、<br />熱量が集まる
+            遠方からの来場者も含め、開演前から会場周辺に集まる動きが見られた。
+            <br />
+            ファンダムの広域性と早めの来場傾向が重なっている。
           </p>
         </motion.div>
 
@@ -816,7 +1052,9 @@ export function ArrivalTime() {
             Vaundy
           </h3>
           <p className="arrival-time__scene-copy text-white/90 text-lg tracking-widest leading-relaxed">
-            開演に向けて、<br />都市の中から人が集まる
+            首都圏在住者を中心に、開演時刻に向けて段階的に人流が増えていく。
+            <br />
+            都市部の生活圏から会場へ向かう動きが読み取れる。
           </p>
         </motion.div>
 
@@ -854,18 +1092,7 @@ export function ArrivalTime() {
               domeClassName="arrival-time__comparison-dome--fruits-zipper"
               percentClassName="arrival-time__comparison-percent--fruits-zipper"
               paths={COMP_PATHS.fz}
-            />
-
-            <ComparisonDome
-              title="Vaundy"
-              insightLabel="直前集中型"
-              color="#A6FF4D"
-              progress={compareTimeP}
-              data={S06_DATA.vaundy}
-              swarmClassName="arrival-time__comparison-particles--vaundy"
-              domeClassName="arrival-time__comparison-dome--vaundy"
-              percentClassName="arrival-time__comparison-percent--vaundy"
-              paths={COMP_PATHS.vaundy}
+              profileKey="fz"
             />
 
             <ComparisonDome
@@ -878,12 +1105,30 @@ export function ArrivalTime() {
               domeClassName="arrival-time__comparison-dome--riize"
               percentClassName="arrival-time__comparison-percent--riize"
               paths={COMP_PATHS.riize}
+              profileKey="riize"
+            />
+
+            <ComparisonDome
+              title="Vaundy"
+              insightLabel="直前集中型"
+              color="#A6FF4D"
+              progress={compareTimeP}
+              data={S06_DATA.vaundy}
+              swarmClassName="arrival-time__comparison-particles--vaundy"
+              domeClassName="arrival-time__comparison-dome--vaundy"
+              percentClassName="arrival-time__comparison-percent--vaundy"
+              paths={COMP_PATHS.vaundy}
+              profileKey="vaundy"
             />
           </div>
 
           <motion.p
-            className="arrival-time__comparison-copy text-center text-white/50 tracking-[0.16em] leading-relaxed max-w-2xl mt-1"
-            style={{ fontSize: "clamp(0.65rem, 1.1vw, 0.82rem)" }}
+            className="arrival-time__comparison-copy text-center tracking-[0.06em] max-w-2xl mt-2 md:mt-3"
+            style={{
+              fontSize: "clamp(14px, 1.4vw, 16px)",
+              color: "rgba(255,255,255,0.72)",
+              lineHeight: 1.8,
+            }}
           >
             {compCopyText}
           </motion.p>

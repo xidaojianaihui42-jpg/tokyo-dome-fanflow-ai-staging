@@ -1,6 +1,13 @@
 import React, { useRef, useMemo, useEffect, useState } from "react";
 import { motion, useScroll, useTransform, MotionValue, useMotionValue, animate } from "motion/react";
-import tokyoDomeAerial from "../../imports/__.jpeg";
+import tokyoDomeMapNorth from "../../imports/tokyo-dome-map-north.jpeg";
+
+const MAP_BASE_SIZE = { width: 2881, height: 1921 };
+const TOKYO_DOME_POINT = {
+  x: 1585 / MAP_BASE_SIZE.width,
+  y: 884 / MAP_BASE_SIZE.height,
+};
+const MAP_OBJECT_POSITION = `center ${Math.round(TOKYO_DOME_POINT.y * 100)}%`;
 
 const ITEMS_COUNT = 300;
 
@@ -446,14 +453,23 @@ export function FandomProfile() {
   const compGenderOp = useTransform(scrollYProgress, [0.72, 0.75, 0.81, 0.84], [0, 1, 1, 0]);
   const silhouetteOp = useTransform(scrollYProgress, [0.82, 0.85, 0.92, 0.95], [0, 1, 1, 0]);
 
+  const ageNoteOpacity = useTransform(scrollYProgress, (s) => {
+    if (s < 0.12) return 0;
+    if (s <= 0.14) return (s - 0.12) / 0.02;
+    if (s <= 0.82) return 1;
+    if (s <= 0.84) return (0.84 - s) / 0.02;
+    return 0;
+  });
+
   return (
     <section ref={containerRef} className="section-fandom-profile relative h-[500vh] bg-[#050505]" style={{ position: "relative" }}>
       <div className="fandom-profile__background sticky top-0 w-full h-[100vh] overflow-hidden">
         <img
-          src={tokyoDomeAerial}
+          src={tokyoDomeMapNorth}
           alt=""
           aria-hidden="true"
           className="fandom-profile__map-bg absolute inset-0 w-full h-full object-cover opacity-[0.12] blur-[10px] scale-105"
+          style={{ objectPosition: MAP_OBJECT_POSITION }}
         />
 
         <div className="fandom-profile__base-gradient absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(20,20,24,0.9),rgba(5,5,5,1)_72%)]" />
@@ -462,7 +478,7 @@ export function FandomProfile() {
           className="fandom-profile__artist-spotlight fandom-profile__artist-spotlight--fruits-zipper absolute inset-0 pointer-events-none"
           style={{
             opacity: fzTextOp,
-            background: "radial-gradient(circle at 56% 50%, rgba(0,209,255,0.22), transparent 38%)"
+            background: `radial-gradient(circle at ${TOKYO_DOME_POINT.x * 100}% ${TOKYO_DOME_POINT.y * 100}%, rgba(0,209,255,0.22), transparent 38%)`
           }}
         />
 
@@ -470,7 +486,7 @@ export function FandomProfile() {
           className="fandom-profile__artist-spotlight fandom-profile__artist-spotlight--riize absolute inset-0 pointer-events-none"
           style={{
             opacity: rzTextOp,
-            background: "radial-gradient(circle at 56% 50%, rgba(255,78,219,0.22), transparent 38%)"
+            background: `radial-gradient(circle at ${TOKYO_DOME_POINT.x * 100}% ${TOKYO_DOME_POINT.y * 100}%, rgba(255,78,219,0.22), transparent 38%)`
           }}
         />
 
@@ -478,7 +494,7 @@ export function FandomProfile() {
           className="fandom-profile__artist-spotlight fandom-profile__artist-spotlight--vaundy absolute inset-0 pointer-events-none"
           style={{
             opacity: vdTextOp,
-            background: "radial-gradient(circle at 56% 50%, rgba(166,255,77,0.2), transparent 38%)"
+            background: `radial-gradient(circle at ${TOKYO_DOME_POINT.x * 100}% ${TOKYO_DOME_POINT.y * 100}%, rgba(166,255,77,0.2), transparent 38%)`
           }}
         />
 
@@ -599,6 +615,13 @@ export function FandomProfile() {
             </p>
           </div>
         </motion.div>
+
+        <motion.p
+          className="fandom-profile__age-data-note absolute bottom-6 right-4 md:bottom-8 md:right-10 z-25 max-w-[300px] text-[10px] md:text-[11px] text-white/50 leading-[1.9] tracking-[0.03em] text-right pointer-events-none"
+          style={{ opacity: ageNoteOpacity }}
+        >
+          ※年代分析はLAPのデータから20代・30代・40代・50代を抽出して集計しています。
+        </motion.p>
       </div>
     </section>
   );

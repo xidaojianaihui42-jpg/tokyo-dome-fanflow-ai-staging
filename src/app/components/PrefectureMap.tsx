@@ -1,7 +1,14 @@
 import React, { useRef } from "react";
 import { motion, useScroll, useTransform, useMotionValueEvent, animate, AnimatePresence } from "motion/react";
 import japanMapImage from "../../imports/map_all.png";
-import tokyoDomeBg from "../../imports/AdobeStock_1252355560_Editorial_Use_Only.jpeg";
+import tokyoDomeMapNorth from "../../imports/tokyo-dome-map-north.jpeg";
+
+const MAP_BASE_SIZE = { width: 2881, height: 1921 };
+const TOKYO_DOME_POINT = {
+  x: 1585 / MAP_BASE_SIZE.width,
+  y: 884 / MAP_BASE_SIZE.height,
+};
+const MAP_OBJECT_POSITION = `center ${Math.round(TOKYO_DOME_POINT.y * 100)}%`;
 
 const TOKYO_DOME = { x: 530, y: 623 };
 
@@ -426,8 +433,6 @@ export function PrefectureMap() {
 
               <svg viewBox="0 0 1000 1000" className="absolute inset-0 w-full h-full prefecture-map__japan-map">
                 <g className="prefecture-map__flow-layer">
-                  <circle cx={TOKYO_DOME.x} cy={TOKYO_DOME.y} r="7" fill="white" opacity="0.9" className="prefecture-map__tokyo-dome-point" />
-
                   <motion.g style={{ opacity: fzOpacity }}>
                     {FZ_FLOW_POINTS.map((p, i) => (
                       <FlowLine
@@ -559,13 +564,19 @@ export function PrefectureMap() {
           </AnimatePresence>
         </motion.div>
 
-        <motion.div className="absolute z-10 flex flex-col items-center text-center px-4" style={{ opacity: introOpacity, y: introY }}>
-          <h2 className="prefecture-map__section-title text-4xl md:text-5xl lg:text-6xl text-white font-bold tracking-[0.1em] mb-6">
-            ファンはどこから来たのか。
+        <motion.div className="absolute z-10 flex flex-col items-center text-center px-4 max-w-3xl" style={{ opacity: introOpacity, y: introY }}>
+          <h2 className="prefecture-map__section-title text-4xl md:text-5xl lg:text-6xl text-white font-bold tracking-[0.1em] mb-8 md:mb-10">
+            ファンは、どこから東京ドームへ来たのか。
           </h2>
-          <p className="prefecture-map__section-copy text-[#a0a0a0] text-lg md:text-xl tracking-[0.1em] leading-relaxed">
-            ライブは会場で始まるのではない。<br />
-            全国から集まるその瞬間から始まっている。
+          <p
+            className="prefecture-map__section-copy text-base md:text-lg lg:text-xl tracking-[0.08em] font-normal"
+            style={{ color: "rgba(255,255,255,0.72)", lineHeight: 2.0 }}
+          >
+            首都圏からの来場が中心となる一方で、
+            <br />
+            公演によっては遠方から訪れるファンも少なくない。
+            <br />
+            居住地データから、ファンダムの広がりを読み解く。
           </p>
         </motion.div>
 
@@ -633,10 +644,44 @@ export function PrefectureMap() {
           </div>
         </motion.div>
 
-        <motion.div className="prefecture-map__dome-bg absolute inset-0 pointer-events-none z-20 flex items-center justify-center" style={{ opacity: domeBgOpacity }}>
-          <motion.img src={tokyoDomeBg} alt="Tokyo Dome" className="w-full h-full object-cover" style={{ scale: domeBgScale }} />
-          <div className="absolute inset-0 bg-[#050505]/60" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-[#050505]/80" />
+        <motion.div className="prefecture-map__dome-bg absolute inset-0 pointer-events-none z-20" style={{ opacity: domeBgOpacity }}>
+          <div className="relative w-full h-full">
+            <motion.img
+              src={tokyoDomeMapNorth}
+              alt="Tokyo Dome"
+              className="w-full h-full object-cover"
+              style={{ scale: domeBgScale, objectPosition: MAP_OBJECT_POSITION }}
+            />
+            <div
+              className="prefecture-map__dome-center-glow absolute pointer-events-none"
+              style={{
+                left: `${TOKYO_DOME_POINT.x * 100}%`,
+                top: `${TOKYO_DOME_POINT.y * 100}%`,
+                transform: "translate(-50%, -50%)",
+              }}
+            >
+              <motion.div
+                className="absolute"
+                style={{
+                  width: 280,
+                  height: 280,
+                  left: "50%",
+                  top: "50%",
+                  transform: "translate(-50%, -50%)",
+                  background:
+                    "radial-gradient(circle, rgba(0,209,255,0.24) 0%, rgba(0,209,255,0.14) 28%, rgba(0,209,255,0.06) 55%, transparent 78%)",
+                  border: "none",
+                  outline: "none",
+                  boxShadow: "none",
+                  filter: "blur(12px)",
+                }}
+                animate={{ opacity: [0.35, 0.6, 0.35], scale: [1, 1.06, 1] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              />
+            </div>
+            <div className="absolute inset-0 bg-[#050505]/60" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-[#050505]/80" />
+          </div>
         </motion.div>
 
         <motion.div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30" style={{ opacity: zoomTextOpacity }}>

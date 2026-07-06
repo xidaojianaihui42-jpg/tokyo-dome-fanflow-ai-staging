@@ -5,6 +5,13 @@ import type { MotionValue } from "motion/react";
 import heroMapImage from "../../imports/heromap1.png";
 import tokyoDomePhoto from "../../imports/Dome_hero.jpg";
 
+const MAP_BASE_SIZE = { width: 1000, height: 1000 };
+const TOKYO_MAP_POINT = {
+  x: 530 / MAP_BASE_SIZE.width,
+  y: 623 / MAP_BASE_SIZE.height,
+};
+const TOKYO_MAP_ORIGIN = `${TOKYO_MAP_POINT.x * 100}% ${TOKYO_MAP_POINT.y * 100}%`;
+
 function JapanMapLayer({ scrollProgress }: { scrollProgress: MotionValue<number> }) {
   const mapScale = useTransform(scrollProgress, [0, 0.2], [1, 20]);
   const mapOpacity = useTransform(scrollProgress, [0.1, 0.2], [1, 0]);
@@ -43,13 +50,15 @@ function JapanMapLayer({ scrollProgress }: { scrollProgress: MotionValue<number>
   return (
     <motion.div
       className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none"
-      style={{
-        scale: mapScale,
-        opacity: mapOpacity,
-        transformOrigin: "54% 63%",
-      }}
+      style={{ opacity: mapOpacity }}
     >
-      <div className="relative w-full max-w-[1000px] aspect-square">
+      <motion.div
+        className="relative w-full max-w-[1000px] aspect-square"
+        style={{
+          scale: mapScale,
+          transformOrigin: TOKYO_MAP_ORIGIN,
+        }}
+      >
         <img
           src={heroMapImage}
           alt="日本地図"
@@ -79,8 +88,8 @@ function JapanMapLayer({ scrollProgress }: { scrollProgress: MotionValue<number>
         <motion.div
           className="hero__tokyo-glow absolute rounded-full pointer-events-none"
           style={{
-            left: "54%",
-            top: "63%",
+            left: `${TOKYO_MAP_POINT.x * 100}%`,
+            top: `${TOKYO_MAP_POINT.y * 100}%`,
             x: "-50%",
             y: "-50%",
             width: "18px",
@@ -96,8 +105,8 @@ function JapanMapLayer({ scrollProgress }: { scrollProgress: MotionValue<number>
         <motion.div
           className="hero__tokyo-glow-ring absolute rounded-full border border-[#00D1FF] pointer-events-none"
           style={{
-            left: "54%",
-            top: "63%",
+            left: `${TOKYO_MAP_POINT.x * 100}%`,
+            top: `${TOKYO_MAP_POINT.y * 100}%`,
             x: "-50%",
             y: "-50%",
             width: "86px",
@@ -107,7 +116,7 @@ function JapanMapLayer({ scrollProgress }: { scrollProgress: MotionValue<number>
             boxShadow: "0 0 60px rgba(0,209,255,0.55)",
           }}
         />
-      </div>
+      </motion.div>
     </motion.div>
   );
 }
@@ -327,23 +336,64 @@ export function Hero() {
     [0, 0.32]
   );
 
-  const nextSectionCopyOpacity = useTransform(scrollYProgress, (s) => {
-    if (s < 0.78) return 0;
-    if (s <= 0.84) return (s - 0.78) / 0.06;
+  const nextSectionHeadingOpacity = useTransform(scrollYProgress, (s) => {
+    if (s < 0.62) return 0;
+    if (s <= 0.68) return (s - 0.62) / 0.06;
     if (s <= 0.96) return 1;
-    return Math.max(0, 1 - (s - 0.96) / 0.04);
+    if (s <= 0.99) return 1 - (s - 0.96) / 0.03;
+    return 0;
   });
 
-  const nextSectionCopyY = useTransform(
+  const nextSectionHeadingY = useTransform(
     scrollYProgress,
-    [0.78, 0.84],
-    [28, 0]
+    [0.62, 0.68, 0.96],
+    [28, 0, 0]
   );
 
-  const nextSectionCopyBlur = useTransform(
+  const nextSectionHeadingBlur = useTransform(
     scrollYProgress,
-    [0.78, 0.84],
-    ["blur(14px)", "blur(0px)"]
+    [0.62, 0.68, 0.96],
+    ["blur(14px)", "blur(0px)", "blur(0px)"]
+  );
+
+  const nextSectionBodyOpacity = useTransform(scrollYProgress, (s) => {
+    if (s < 0.68) return 0;
+    if (s <= 0.74) return (s - 0.68) / 0.06;
+    if (s <= 0.96) return 1;
+    if (s <= 0.99) return 1 - (s - 0.96) / 0.03;
+    return 0;
+  });
+
+  const nextSectionBodyY = useTransform(
+    scrollYProgress,
+    [0.68, 0.74, 0.96],
+    [22, 0, 0]
+  );
+
+  const nextSectionBodyBlur = useTransform(
+    scrollYProgress,
+    [0.68, 0.74, 0.96],
+    ["blur(12px)", "blur(0px)", "blur(0px)"]
+  );
+
+  const nextSectionNoteOpacity = useTransform(scrollYProgress, (s) => {
+    if (s < 0.82) return 0;
+    if (s <= 0.88) return (s - 0.82) / 0.06;
+    if (s <= 0.96) return 1;
+    if (s <= 0.99) return 1 - (s - 0.96) / 0.03;
+    return 0;
+  });
+
+  const nextSectionNoteY = useTransform(
+    scrollYProgress,
+    [0.82, 0.88, 0.96],
+    [14, 0, 0]
+  );
+
+  const nextSectionNoteBlur = useTransform(
+    scrollYProgress,
+    [0.82, 0.88, 0.96],
+    ["blur(6px)", "blur(0px)", "blur(0px)"]
   );
 
   const initialScrollIndicatorOpacity = useTransform(
@@ -355,7 +405,7 @@ export function Hero() {
   return (
     <section
       ref={containerRef}
-      className="section-hero h-[400vh] relative w-full bg-[#050505]"
+      className="section-hero h-[560vh] relative w-full bg-[#050505]"
       style={{ fontFamily: "'Noto Sans JP', sans-serif", position: "relative" }}
     >
       <div className="sticky top-0 w-full h-[100vh] overflow-hidden flex flex-col items-center justify-center">
@@ -454,18 +504,58 @@ export function Hero() {
           style={{ opacity: heroEndSoftFadeOpacity }}
         />
 
-        <motion.div
-          className="hero__next-section-copy absolute inset-0 z-[29] flex items-center justify-center pointer-events-none px-6"
-          style={{
-            opacity: nextSectionCopyOpacity,
-            y: nextSectionCopyY,
-            filter: nextSectionCopyBlur,
-          }}
-        >
-          <p className="text-white text-[28px] md:text-[44px] lg:text-[56px] font-bold tracking-[0.14em] leading-relaxed text-center drop-shadow-[0_0_32px_rgba(255,255,255,0.32)]">
-            人流データから見えたもの
-          </p>
-        </motion.div>
+        <div className="hero__next-section-copy absolute inset-0 z-[29] flex flex-col items-center justify-center pointer-events-none px-6">
+          <motion.div
+            style={{
+              opacity: nextSectionHeadingOpacity,
+              y: nextSectionHeadingY,
+              filter: nextSectionHeadingBlur,
+            }}
+          >
+            <p className="text-white text-[28px] md:text-[44px] lg:text-[56px] font-bold tracking-[0.14em] leading-relaxed text-center drop-shadow-[0_0_32px_rgba(255,255,255,0.32)]">
+              人流データから見えたもの
+            </p>
+          </motion.div>
+
+          <motion.div
+            className="hero__next-section-body mt-6 md:mt-8 max-w-[760px] md:max-w-[860px] lg:max-w-[900px] w-full"
+            style={{
+              opacity: nextSectionBodyOpacity,
+              y: nextSectionBodyY,
+              filter: nextSectionBodyBlur,
+            }}
+          >
+            <p
+              className="text-[16px] md:text-[18px] lg:text-[22px] text-center tracking-[0.06em] font-medium"
+              style={{ color: "rgba(255,255,255,0.84)", lineHeight: 1.9 }}
+            >
+              東京ドームという同じ会場でも、来場者の動きは一様ではない。
+              <br />
+              居住地、来場時間、年代・性別のデータを追うと、
+              <br />
+              アーティストごとに異なるファンダムの輪郭が見えてくる。
+            </p>
+          </motion.div>
+
+          <motion.div
+            className="hero__data-source-note mt-10 md:mt-12 max-w-[720px] w-full px-4 py-3 md:px-5 md:py-4 rounded-lg bg-black/28 border border-white/[0.07]"
+            style={{
+              opacity: nextSectionNoteOpacity,
+              y: nextSectionNoteY,
+              filter: nextSectionNoteBlur,
+            }}
+          >
+            <p
+              className="text-[11px] md:text-[12px] text-center tracking-[0.02em]"
+              style={{
+                color: "rgba(255,255,255,0.58)",
+                lineHeight: 1.85,
+              }}
+            >
+              今回のインフォグラフィックは、Location AI（東京・渋谷）が独自開発した『Location AI Platform（LAP）』を活用して制作しました。LAPは、提携先のスマートフォンアプリを通じて利用者の許諾を得て取得した累計3兆レコードを超える位置情報ビッグデータをAI技術により解析・統計データ化し、多様な人流分析を可能にしています。
+            </p>
+          </motion.div>
+        </div>
 
         <motion.div
           className="hero__title-wrapper absolute top-[20%] md:top-[25%] z-30 flex flex-col items-center text-center px-4 w-full"
