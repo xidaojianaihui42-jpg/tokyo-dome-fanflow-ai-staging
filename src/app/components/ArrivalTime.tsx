@@ -822,7 +822,7 @@ const ComparisonDome = ({
       </motion.div>
 
       <p
-        className="text-[13px] md:text-[15px] font-semibold tracking-[0.1em] font-mono text-center leading-snug"
+        className="text-[14px] md:text-[16px] font-semibold tracking-[0.1em] font-mono text-center leading-snug"
         style={{ color: "rgba(255,255,255,0.75)" }}
       >
         {insightLabel}

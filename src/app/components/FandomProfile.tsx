@@ -186,6 +186,38 @@ function GenderLegend({
   );
 }
 
+const GENDER_COMPARISON_COLUMNS = [
+  { name: "F. ZIPPER", color: "#00D1FF", female: 51, male: 49 },
+  { name: "RIIZE", color: "#FF4EDB", female: 81, male: 19 },
+  { name: "Vaundy", color: "#A6FF4D", female: 73, male: 27 },
+] as const;
+
+function GenderComparisonColumn({
+  name,
+  color,
+  female,
+  male,
+}: {
+  name: string;
+  color: string;
+  female: number;
+  male: number;
+}) {
+  return (
+    <div className="fandom-profile__gender-comparison-column flex flex-col items-center flex-1 min-w-0 text-center">
+      <div
+        className="font-bold tracking-widest text-base md:text-lg mb-2"
+        style={{ color }}
+      >
+        {name}
+      </div>
+      <div className="text-[#888] font-mono text-xs md:text-sm whitespace-nowrap">
+        女性{female}% / 男性{male}%
+      </div>
+    </div>
+  );
+}
+
 function AgeAxisLabels({
   opacity,
   centerX,
@@ -456,6 +488,7 @@ export function FandomProfile() {
   const ageNoteOpacity = useTransform(scrollYProgress, (s) => {
     if (s < 0.12) return 0;
     if (s <= 0.14) return (s - 0.12) / 0.02;
+    if (s >= 0.72 && s <= 0.84) return 0;
     if (s <= 0.82) return 1;
     if (s <= 0.84) return (0.84 - s) / 0.02;
     return 0;
@@ -586,22 +619,25 @@ export function FandomProfile() {
           </div>
         </motion.div>
 
-        <motion.div className="fandom-profile__gender-comparison absolute top-[10%] inset-x-0 z-20 flex flex-col items-center" style={{ opacity: compGenderOp }}>
-          <h3 className="fandom-profile__gender-comparison-title text-white text-3xl font-bold tracking-[0.2em] mb-12">性別比較</h3>
-          <div className="w-full max-w-[1200px] flex justify-between px-12 mt-[35vh]">
-            <div className="text-center w-32">
-              <div className="text-[#00D1FF] font-bold tracking-widest text-lg mb-2">F. ZIPPER</div>
-              <div className="text-[#888] font-mono text-sm">女性51% / 男性49%</div>
-            </div>
-            <div className="text-center w-32">
-              <div className="text-[#FF4EDB] font-bold tracking-widest text-lg mb-2">RIIZE</div>
-              <div className="text-[#888] font-mono text-sm">女性81% / 男性19%</div>
-            </div>
-            <div className="text-center w-32">
-              <div className="text-[#A6FF4D] font-bold tracking-widest text-lg mb-2">Vaundy</div>
-              <div className="text-[#888] font-mono text-sm">女性73% / 男性27%</div>
-            </div>
+        <motion.div
+          className="fandom-profile__gender-comparison absolute inset-0 z-20 flex flex-col pointer-events-none"
+          style={{ opacity: compGenderOp }}
+        >
+          <div className="shrink-0 pt-[10vh] text-center px-4">
+            <h3 className="fandom-profile__gender-comparison-title text-white text-3xl font-bold tracking-[0.2em]">
+              性別比較
+            </h3>
           </div>
+
+          <div className="fandom-profile__gender-comparison-columns w-full max-w-[1200px] mx-auto px-6 md:px-12 flex justify-between gap-2 md:gap-4 mt-[48vh] md:mt-[50vh]">
+            {GENDER_COMPARISON_COLUMNS.map((column) => (
+              <GenderComparisonColumn key={column.name} {...column} />
+            ))}
+          </div>
+
+          <p className="fandom-profile__gender-comparison-footnote absolute bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 max-w-[520px] px-4 text-[11px] md:text-xs text-white/50 text-center leading-relaxed tracking-[0.03em]">
+            ※年代分析はLAPのデータから20代・30代・40代・50代を抽出して集計しています。
+          </p>
         </motion.div>
 
         <motion.div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none" style={{ opacity: silhouetteOp }}>

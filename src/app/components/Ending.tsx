@@ -1,6 +1,7 @@
 import React, { useRef, useMemo } from "react";
 import { motion, useScroll, useTransform, MotionValue } from "motion/react";
 import japanMapImage from "../../imports/japan-07s.png";
+import { NikkeiTrendyPresentedBy } from "./NikkeiTrendyLogo";
 
 // ==========================================
 // 定数・設定
@@ -23,7 +24,10 @@ const T = {
   domeZoom: 0.7,
   audienceLight: 0.8,
   finalMessage: 0.9,
-  credit: 0.98
+  /** クレジット表示開始（finalMessage の後） */
+  credit: 0.91,
+  creditFull: 0.95,
+  creditHold: 0.985,
 };
 
 // ==========================================
@@ -58,9 +62,15 @@ function getDomePos() {
   };
 }
 
-// ==========================================
-// 粒子コンポーネント
-// ==========================================
+const PROJECT_MEMBERS = [
+  "Masayuki Otani",
+  "Tatsuhisa Shirakabe",
+  "Yutaka Toba",
+  "Masahiro Kurata",
+  "Hidekazu Takahashi",
+  "Kanae Nishijima",
+] as const;
+
 function Particle({ data, progress }: { data: any, progress: MotionValue<number> }) {
   const x = useTransform(progress, data.times, data.xPos);
   const y = useTransform(progress, data.times, data.yPos);
@@ -170,17 +180,30 @@ export function Ending() {
   const copy06Op = useTransform(scrollYProgress, [T.domeZoom + 0.04, T.domeZoom + 0.07, T.audienceLight - 0.02, T.audienceLight], [0, 1, 1, 0]);
   const copy07Op = useTransform(scrollYProgress, [T.domeZoom + 0.08, T.domeZoom + 0.095, T.audienceLight - 0.003, T.audienceLight], [0, 1, 1, 0]);
 
-  // ラストメッセージ
-  const finalTitleOp = useTransform(scrollYProgress, [T.audienceLight, T.finalMessage, T.credit, 1], [0, 1, 1, 0]);
+  // ラストメッセージ（クレジット表示前にフェードアウト）
+  const finalTitleOp = useTransform(
+    scrollYProgress,
+    [T.audienceLight, T.finalMessage, T.credit - 0.01, T.credit + 0.03],
+    [0, 1, 1, 0]
+  );
   const finalTitleY = useTransform(scrollYProgress, [T.audienceLight, T.finalMessage], [20, 0]);
-  const finalCopyOp = useTransform(scrollYProgress, [T.finalMessage, T.finalMessage + 0.05, T.credit, 1], [0, 1, 1, 0]);
-  const finalCopyY = useTransform(scrollYProgress, [T.finalMessage, T.finalMessage + 0.05], [20, 0]);
+  const finalCopyOp = useTransform(
+    scrollYProgress,
+    [T.finalMessage, T.finalMessage + 0.02, T.credit + 0.02, T.credit + 0.05],
+    [0, 1, 1, 0]
+  );
+  const finalCopyY = useTransform(scrollYProgress, [T.finalMessage, T.finalMessage + 0.04], [20, 0]);
 
-  // クレジット
-  const creditOp = useTransform(scrollYProgress, [T.credit, 1], [0, 1]);
+  // クレジット（ゆっくりフェードイン → 長めにキープ → 最後まで表示維持）
+  const creditOp = useTransform(
+    scrollYProgress,
+    [T.credit, T.creditFull, T.creditHold, 1],
+    [0, 1, 1, 1]
+  );
+  const creditY = useTransform(scrollYProgress, [T.credit, T.creditFull], [20, 0]);
 
   return (
-    <section ref={containerRef} className="section-ending relative h-[400vh] bg-[#050505]" style={{ position: "relative" }}>
+    <section ref={containerRef} className="section-ending relative h-[600vh] bg-[#050505]" style={{ position: "relative" }}>
       <div className="ending__background sticky top-0 w-full h-[100vh] overflow-hidden flex flex-col items-center justify-center bg-[#050505]">
         
         {/* --- 背景キャンバス層 --- */}
@@ -286,18 +309,52 @@ export function Ending() {
           </motion.div>
 
           {/* クレジット */}
-          <motion.div 
-            style={{ opacity: creditOp }} 
-            className="absolute bottom-16 flex flex-col items-center gap-2"
+          <motion.div
+            style={{ opacity: creditOp, y: creditY }}
+            className="absolute inset-0 flex flex-col items-center justify-center gap-0 max-w-md mx-auto px-4 pointer-events-none"
           >
-            <div className="ending__credit-title text-[#555] text-sm tracking-[0.3em] uppercase mb-2">
+            <div className="ending__credit-title text-[#555] text-sm tracking-[0.3em] uppercase mb-1.5">
               2025 Tokyo Dome Fan Mobility Analysis
             </div>
             <div className="ending__credit-artist-list text-[#333] text-xs tracking-widest font-mono">
               FRUITS ZIPPER / RIIZE / Vaundy
             </div>
-            <div className="ending__credit-note text-[#333] text-xs tracking-widest font-mono mt-4">
+            <div className="ending__credit-note text-[#333] text-xs tracking-widest font-mono mt-3 mb-4">
               Data Visualization Project
+            </div>
+
+            <NikkeiTrendyPresentedBy />
+
+            <p
+              className="ending__credit-heading text-sm md:text-base font-semibold tracking-[0.16em] text-white/75 mb-4"
+              style={{ textShadow: "0 0 12px rgba(0,0,0,0.8)" }}
+            >
+              CREDIT
+            </p>
+
+            <div className="ending__credit-members w-full text-center mb-4">
+              <p className="text-[11px] md:text-[13px] tracking-[0.12em] text-white/55 mb-2 uppercase">
+                Project Members
+              </p>
+              <ul className="space-y-0.5">
+                {PROJECT_MEMBERS.map((name) => (
+                  <li
+                    key={name}
+                    className="text-[13px] md:text-[15px] leading-[1.65] text-white/72 font-light"
+                  >
+                    {name}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="ending__credit-cooperation w-full text-center">
+              <p className="text-[11px] md:text-[13px] tracking-[0.12em] text-white/55 mb-1.5 uppercase">
+                Data Cooperation
+              </p>
+              <p className="text-[13px] md:text-[15px] leading-[1.65] text-white/72 font-light">
+                Location AI Inc.
+              </p>
             </div>
           </motion.div>
 

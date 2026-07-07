@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useMemo } from "react";
 import {
   motion,
   useScroll,
@@ -6,6 +6,11 @@ import {
   useSpring,
   useMotionValueEvent
 } from "motion/react";
+import {
+  PrefectureDetailModal,
+  PREFECTURE_MODAL_DATA,
+  type PrefectureModalArtistKey,
+} from "./PrefectureDetailModal";
 
 const COLORS = {
   FZ: "#00D1FF",
@@ -13,7 +18,13 @@ const COLORS = {
   VD: "#A6FF4D"
 };
 
-const TIME_LABELS = ["8h前", "7h前", "6h前", "5h前", "4h前", "3h前", "2h前", "1h前", "開演"];
+function withAlpha(hex: string, alpha: number) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 
 const DATA = {
   FZ: {
@@ -22,7 +33,7 @@ const DATA = {
     prefectures: 30,
     genderF: 51,
     genderM: 49,
-    arrivalTrend: [2, 4, 7, 14, 36, 24, 10, 3, 1]
+    arrivalTrend: [1.8, 1.5, 6.1, 9.7, 4.8, 22.4, 23.8, 14.4, 15.5],
   },
   RZ: {
     artist: "RIIZE",
@@ -30,7 +41,7 @@ const DATA = {
     prefectures: 28,
     genderF: 81,
     genderM: 19,
-    arrivalTrend: [1, 3, 8, 16, 38, 22, 8, 3, 1]
+    arrivalTrend: [1.8, 7.0, 0.9, 4.8, 3.5, 9.6, 12.7, 36.0, 23.7],
   },
   VD: {
     artist: "Vaundy",
@@ -38,8 +49,8 @@ const DATA = {
     prefectures: 34,
     genderF: 73,
     genderM: 27,
-    arrivalTrend: [1, 2, 3, 5, 8, 16, 42, 18, 5]
-  }
+    arrivalTrend: [2.5, 2.3, 1.5, 1.0, 1.7, 2.7, 23.4, 53.4, 11.5],
+  },
 };
 
 function AnimatedNumber({
@@ -71,11 +82,74 @@ function AnimatedNumber({
   return <span className={className}>{displayValue}</span>;
 }
 
-function ArrivalTrendLine({
+const TIME_SLOT_LABELS = ["8h前", "7h前", "6h前", "5h前", "4h前", "3h前", "2h前", "1h前", "開演"];
+
+const AXIS_TICKS = [
+  { index: 0, label: "8h" },
+  { index: 2, label: "6h" },
+  { index: 4, label: "4h" },
+  { index: 6, label: "2h" },
+  { index: 8, label: "開演" },
+] as const;
+
+const DOT_STACK = {
+  maxDotsPerSlot: 10,
+  dotSizePx: 9,
+  stackHeightPx: 124,
+  gapPx: 6,
+} as const;
+
+function computeDotCounts(hourlyValues: number[]): number[] {
+  const peak = Math.max(...hourlyValues);
+  return hourlyValues.map((value) => {
+    if (value <= 0) return 0;
+    if (value < 2) return 1;
+    return Math.max(1, Math.round((value / peak) * DOT_STACK.maxDotsPerSlot));
+  });
+}
+
+function scrollProgressToActiveIndex(progress: number): number {
+  const t = Math.max(0, Math.min(1, (progress - 0.4) / 0.3));
+  return Math.round(t * (TIME_SLOT_LABELS.length - 1));
+}
+
+function GlowStackDot({
+  color,
+  isFuture,
+  isCurrent,
+  delay,
+}: {
+  color: string;
+  isFuture: boolean;
+  isCurrent: boolean;
+  delay: number;
+}) {
+  return (
+    <motion.span
+      className="block rounded-full shrink-0"
+      style={{
+        width: DOT_STACK.dotSizePx,
+        height: DOT_STACK.dotSizePx,
+        backgroundColor: isFuture ? "rgba(255,255,255,0.18)" : color,
+        boxShadow: isFuture
+          ? undefined
+          : `0 0 12px ${color}, 0 0 5px ${color}`,
+      }}
+      initial={{ opacity: 0, scale: 0.35 }}
+      animate={{
+        opacity: isFuture ? 0.3 : isCurrent ? 1 : 0.88,
+        scale: isFuture ? 0.9 : 1,
+      }}
+      transition={{ duration: 0.38, delay, ease: [0.22, 1, 0.36, 1] }}
+    />
+  );
+}
+
+function ArrivalTrendDotStack({
   values,
   peakTime,
   progress,
-  color
+  color,
 }: {
   values: number[];
   peakTime: number;
@@ -84,120 +158,97 @@ function ArrivalTrendLine({
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const chartOpacity = useTransform(progress, [0.32, 0.42], [0, 1]);
+  const dotCounts = useMemo(() => computeDotCounts(values), [values]);
 
   useMotionValueEvent(progress, "change", (latest: number) => {
-    const t = Math.max(0, Math.min(1, (latest - 0.4) / 0.3));
-    setActiveIndex(Math.round(t * (TIME_LABELS.length - 1)));
+    setActiveIndex(scrollProgressToActiveIndex(latest));
   });
 
-  const width = 100;
-  const height = 46;
-  const max = Math.max(...values);
-
-  const points = values.map((v, i) => {
-    const x = (i / (values.length - 1)) * width;
-    const y = height - (v / max) * height + 6;
-    return { x, y, v, label: TIME_LABELS[i] };
-  });
-
-  const visiblePoints = points.slice(0, activeIndex + 1);
-  const d = visiblePoints
-    .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
-    .join(" ");
-
-  const current = points[activeIndex];
-  const peakIndex = TIME_LABELS.indexOf(`${peakTime}h前`);
+  const currentLabel = TIME_SLOT_LABELS[activeIndex];
+  const axisLabelByIndex = Object.fromEntries(AXIS_TICKS.map((tick) => [tick.index, tick.label]));
 
   return (
     <motion.div style={{ opacity: chartOpacity }} className="w-full">
-      <div className="flex items-end justify-between mb-3">
+      <div className="flex items-end justify-between mb-3 gap-3">
         <div>
-          <div className="text-xs text-[#888] font-mono mb-1">来場推移</div>
-          <div className="text-white text-sm tracking-wider">
-            現在：{current?.label}
+          <div
+            className="text-[13px] md:text-[15px] font-semibold font-mono mb-1.5 tracking-wider"
+            style={{
+              color: "rgba(255,255,255,0.78)",
+              textShadow: "0 0 8px rgba(0,0,0,0.85)",
+            }}
+          >
+            来場推移
+          </div>
+          <div
+            className="text-[14px] md:text-[16px] font-bold tracking-wider"
+            style={{
+              color: "rgba(255,255,255,0.88)",
+              textShadow: "0 0 8px rgba(0,0,0,0.8)",
+            }}
+          >
+            現在：{currentLabel}
           </div>
         </div>
-        <div className="text-[11px] text-white/70 font-mono">
+        <div
+          className="text-[11px] md:text-[13px] font-semibold font-mono shrink-0 rounded-full px-2 py-1 border"
+          style={{
+            color: "rgba(255,255,255,0.82)",
+            backgroundColor: "rgba(255,255,255,0.08)",
+            borderColor: "rgba(255,255,255,0.14)",
+            textShadow: "0 0 6px rgba(0,0,0,0.75)",
+          }}
+        >
           PEAK {peakTime}h前
         </div>
       </div>
 
-      <div className="relative rounded-xl overflow-hidden bg-black/25 border border-white/10 p-3">
-        <div
-          className="absolute inset-0 opacity-30 pointer-events-none"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)",
-            backgroundSize: "16px 16px"
-          }}
-        />
-
-        <svg viewBox="0 0 100 72" className="relative w-full h-[110px] overflow-visible">
-          <path
-            d={d}
-            fill="none"
-            stroke={color}
-            strokeWidth="2.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ filter: `drop-shadow(0 0 10px ${color})` }}
-          />
-
-          {points.map((p, i) => {
-            const isActive = i === activeIndex;
-            const isPast = i <= activeIndex;
-            const isPeak = i === peakIndex;
+      <div className="relative rounded-xl overflow-hidden bg-black/25 border border-white/10 px-2 sm:px-3 pt-4 pb-2">
+        <div className="flex items-end justify-between gap-0.5 sm:gap-1">
+          {values.map((_, slotIndex) => {
+            const count = dotCounts[slotIndex];
+            const isCurrent = slotIndex === activeIndex;
+            const isFuture = slotIndex > activeIndex;
+            const axisLabel = axisLabelByIndex[slotIndex] ?? "";
 
             return (
-              <g key={i}>
-                <motion.circle
-                  cx={p.x}
-                  cy={p.y}
-                  r={isActive ? 7 : isPeak ? 5 : 3}
-                  fill={isPast ? color : "rgba(255,255,255,0.15)"}
-                  opacity={isPast ? 1 : 0.35}
+              <div key={slotIndex} className="flex flex-1 flex-col items-center min-w-0">
+                <div
+                  className="flex flex-col-reverse items-center justify-start w-full"
                   style={{
-                    filter: isPast ? `drop-shadow(0 0 12px ${color})` : undefined
+                    height: DOT_STACK.stackHeightPx,
+                    gap: DOT_STACK.gapPx,
                   }}
-                />
-
-                {isActive && (
-                  <>
-                    <circle
-                      cx={p.x}
-                      cy={p.y}
-                      r="13"
-                      fill={color}
-                      opacity="0.18"
-                      style={{ filter: "blur(4px)" }}
+                >
+                  {Array.from({ length: count }).map((_, dotIndex) => (
+                    <GlowStackDot
+                      key={dotIndex}
+                      color={color}
+                      isFuture={isFuture}
+                      isCurrent={isCurrent}
+                      delay={
+                        isFuture
+                          ? 0
+                          : isCurrent
+                            ? dotIndex * 0.045
+                            : Math.min(dotIndex * 0.02, 0.12)
+                      }
                     />
-                    <text
-                      x={p.x}
-                      y={Math.max(8, p.y - 12)}
-                      fill="#fff"
-                      fontSize="7"
-                      textAnchor="middle"
-                      className="font-mono"
-                      style={{ filter: "drop-shadow(0 0 6px rgba(0,0,0,0.9))" }}
-                    >
-                      {p.label}
-                    </text>
-                  </>
-                )}
-              </g>
+                  ))}
+                </div>
+                <span
+                  className="mt-2 text-[11px] md:text-xs font-semibold font-mono h-4 leading-none"
+                  style={{
+                    color: "rgba(255,255,255,0.68)",
+                    textShadow: "0 0 6px rgba(0,0,0,0.9)",
+                  }}
+                >
+                  {axisLabel}
+                </span>
+              </div>
             );
           })}
-
-          <text x="0" y="70" fill="rgba(255,255,255,0.45)" fontSize="6" className="font-mono">
-            8h前
-          </text>
-          <text x="50" y="70" fill="rgba(255,255,255,0.45)" fontSize="6" textAnchor="middle" className="font-mono">
-            4h前
-          </text>
-          <text x="100" y="70" fill="rgba(255,255,255,0.45)" fontSize="6" textAnchor="end" className="font-mono">
-            開演
-          </text>
-        </svg>
+        </div>
       </div>
     </motion.div>
   );
@@ -214,18 +265,21 @@ function GenderBar({ f, progress, color }: { f: number; m: number; progress: any
   );
 }
 
+
 function ComparisonCard({
   id,
   data,
   color,
   progress,
-  index
+  index,
+  onOpenPrefecture,
 }: {
   id: string;
   data: typeof DATA.FZ;
   color: string;
   progress: any;
   index: number;
+  onOpenPrefecture: () => void;
 }) {
   const startY = 0.08 + index * 0.04;
   const endY = 0.2 + index * 0.04;
@@ -267,7 +321,7 @@ function ComparisonCard({
 
       <div className="flex flex-col gap-7">
         <div className={`comparison__arrival-trend--${id}`}>
-          <ArrivalTrendLine
+          <ArrivalTrendDotStack
             values={data.arrivalTrend}
             peakTime={data.peakArrival}
             progress={progress}
@@ -275,22 +329,50 @@ function ComparisonCard({
           />
         </div>
 
-        <div className={`comparison__prefecture-count--${id}`}>
-          <div className="text-xs text-[#888] font-mono mb-1 flex items-center gap-2">
-            <span>来訪都道府県</span>
+        <button
+          type="button"
+          onClick={onOpenPrefecture}
+          aria-label={`${data.artist}の来訪都道府県地図を見る`}
+          className={`comparison__prefecture-count--${id} w-full text-left rounded-xl px-3 py-2.5 -mx-1 transition-all duration-200 cursor-pointer group border border-transparent hover:border-white/[0.08] hover:bg-white/[0.05]`}
+          style={
+            {
+              "--artist-color": color,
+              "--artist-glow": withAlpha(color, 0.45),
+            } as React.CSSProperties
+          }
+        >
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="text-xs text-[#888] font-mono transition-colors group-hover:text-white/65">
+              来訪都道府県
+            </span>
+            <span
+              className="comparison__map-link shrink-0 text-[11px] md:text-xs font-semibold rounded-full px-2 py-1 border transition-all duration-200 group-hover:brightness-110 group-hover:shadow-[0_0_10px_var(--artist-glow)]"
+              style={{
+                color,
+                backgroundColor: withAlpha(color, 0.12),
+                borderColor: withAlpha(color, 0.3),
+              }}
+            >
+              地図で見る →
+            </span>
           </div>
-          <div className="text-2xl font-light text-white font-mono tracking-wider flex items-end gap-2">
+          <div className="text-2xl font-light text-white/88 font-mono tracking-wider flex items-end gap-2 transition-colors group-hover:text-white">
             <AnimatedNumber
               value={data.prefectures}
               progress={progress}
               className={`comparison__countup--${id}`}
               suffix=" / 47都道府県"
             />
-            <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white/20 mb-1">
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              className="w-5 h-5 mb-1 transition-all duration-200 fill-white/25 group-hover:fill-current group-hover:drop-shadow-[0_0_10px_currentColor]"
+              style={{ color }}
+            >
               <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
             </svg>
           </div>
-        </div>
+        </button>
 
         <div className={`comparison__gender-ratio--${id}`}>
           <div className="text-xs text-[#888] font-mono mb-2 flex justify-between">
@@ -312,6 +394,7 @@ function ComparisonCard({
 
 export function Comparison() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [modalArtist, setModalArtist] = useState<PrefectureModalArtistKey | null>(null);
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start start", "end end"]
@@ -336,10 +419,38 @@ export function Comparison() {
         </motion.div>
 
         <div className="comparison__card-container w-full max-w-[1200px] flex flex-col md:flex-row gap-6 md:gap-8 justify-center items-center z-10 px-4 perspective-[1000px]">
-          <ComparisonCard id="fruits-zipper" data={DATA.FZ} color={COLORS.FZ} progress={scrollYProgress} index={0} />
-          <ComparisonCard id="riize" data={DATA.RZ} color={COLORS.RZ} progress={scrollYProgress} index={1} />
-          <ComparisonCard id="vaundy" data={DATA.VD} color={COLORS.VD} progress={scrollYProgress} index={2} />
+          <ComparisonCard
+            id="fruits-zipper"
+            data={DATA.FZ}
+            color={COLORS.FZ}
+            progress={scrollYProgress}
+            index={0}
+            onOpenPrefecture={() => setModalArtist("FZ")}
+          />
+          <ComparisonCard
+            id="riize"
+            data={DATA.RZ}
+            color={COLORS.RZ}
+            progress={scrollYProgress}
+            index={1}
+            onOpenPrefecture={() => setModalArtist("RZ")}
+          />
+          <ComparisonCard
+            id="vaundy"
+            data={DATA.VD}
+            color={COLORS.VD}
+            progress={scrollYProgress}
+            index={2}
+            onOpenPrefecture={() => setModalArtist("VD")}
+          />
         </div>
+
+        {modalArtist && (
+          <PrefectureDetailModal
+            data={PREFECTURE_MODAL_DATA[modalArtist]}
+            onClose={() => setModalArtist(null)}
+          />
+        )}
       </div>
     </section>
   );

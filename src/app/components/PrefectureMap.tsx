@@ -33,7 +33,7 @@ const RANKING_DATA = {
   FZ: {
     artist: "FRUITS ZIPPER",
     color: "#00D1FF",
-    text: "首都圏を中心にしながらも、\n愛知・兵庫・大阪など関西・中部からの流入も目立つ。",
+    text: "首都圏中心ながら、中部・関西からの来場も確認",
     items: [
       { pref: "東京都", val: 27.9 },
       { pref: "埼玉県", val: 12.0 },
@@ -50,7 +50,7 @@ const RANKING_DATA = {
   RZ: {
     artist: "RIIZE",
     color: "#FF4EDB",
-    text: "東京都の比率が高い一方で、\n兵庫・愛知・大阪・福岡など遠方からの来場も確認できる。",
+    text: "首都圏を軸に、遠方からの来場も目立つ",
     items: [
       { pref: "東京都", val: 42.2 },
       { pref: "神奈川県", val: 14.7 },
@@ -67,7 +67,7 @@ const RANKING_DATA = {
   VD: {
     artist: "Vaundy",
     color: "#A6FF4D",
-    text: "東京・神奈川・埼玉・千葉が中心。\n都市圏からの来場が特に強く表れている。",
+    text: "首都圏からの来場が中心の都市型人流",
     items: [
       { pref: "東京都", val: 41.0 },
       { pref: "神奈川県", val: 17.0 },
@@ -82,6 +82,37 @@ const RANKING_DATA = {
     ]
   }
 };
+
+const KANTO_RATIO_COMPARISON = [
+  { name: "FRUITS ZIPPER", color: "#00D1FF", kanto: 64.2, outside: 35.8 },
+  { name: "RIIZE", color: "#FF4EDB", kanto: 68.1, outside: 31.9 },
+  { name: "Vaundy", color: "#A6FF4D", kanto: 84.6, outside: 15.4 },
+] as const;
+
+function KantoRatioBar({
+  color,
+  kanto,
+  delay,
+}: {
+  color: string;
+  kanto: number;
+  delay: number;
+}) {
+  return (
+    <div className="relative h-3.5 rounded-full overflow-hidden bg-white/20">
+      <motion.div
+        className="absolute left-0 top-0 h-full rounded-full"
+        style={{
+          backgroundColor: color,
+          boxShadow: `0 0 10px ${color}70`,
+        }}
+        initial={{ width: "0%" }}
+        animate={{ width: `${kanto}%` }}
+        transition={{ duration: 0.85, delay, ease: [0.22, 1, 0.36, 1] }}
+      />
+    </div>
+  );
+}
 
 const PREF_COORDS: Record<string, { x: number; y: number }> = {
   "東京都": { x: TOKYO_DOME.x, y: TOKYO_DOME.y },
@@ -584,7 +615,7 @@ export function PrefectureMap() {
           <h3 className="prefecture-map__artist-name--fruits-zipper text-[#00D1FF] text-4xl md:text-5xl font-bold tracking-wider mb-4 drop-shadow-[0_0_10px_rgba(0,209,255,0.5)]">
             FRUITS ZIPPER
           </h3>
-          <p className="text-white/80 text-xl font-medium tracking-widest mb-2">首都圏に加え、中部・関西からも流入</p>
+          <p className="text-white/80 text-xl font-medium tracking-widest mb-2">首都圏中心ながら、中部・関西からの来場も確認</p>
           <p className="text-[#a0a0a0] text-sm tracking-widest leading-relaxed">1都6県比率 64.2%</p>
         </motion.div>
 
@@ -592,54 +623,59 @@ export function PrefectureMap() {
           <h3 className="prefecture-map__artist-name--riize text-[#FF4EDB] text-4xl md:text-5xl font-bold tracking-wider mb-4 drop-shadow-[0_0_10px_rgba(255,78,219,0.5)]">
             RIIZE
           </h3>
-          <p className="text-white/80 text-xl font-medium tracking-widest mb-2">広域から集まるファン</p>
-          <p className="text-[#a0a0a0] text-sm tracking-widest leading-relaxed">
-            兵庫・大阪・宮城・福岡など遠方来場も目立つ
-          </p>
+          <p className="text-white/80 text-xl font-medium tracking-widest mb-2">首都圏を軸に、遠方からの来場も目立つ</p>
+          <p className="text-[#a0a0a0] text-sm tracking-widest leading-relaxed">1都6県比率 68.1%</p>
         </motion.div>
 
         <motion.div className="absolute top-1/4 left-[5%] z-10 max-w-md" style={{ opacity: vaundyOpacity, y: vaundyY }}>
           <h3 className="prefecture-map__artist-name--vaundy text-[#A6FF4D] text-4xl md:text-5xl font-bold tracking-wider mb-4 drop-shadow-[0_0_10px_rgba(166,255,77,0.5)]">
             Vaundy
           </h3>
-          <p className="text-white/80 text-xl font-medium tracking-widest mb-2">首都圏集中型の人流</p>
+          <p className="text-white/80 text-xl font-medium tracking-widest mb-2">首都圏からの来場が中心の都市型人流</p>
           <p className="text-[#a0a0a0] text-sm tracking-widest leading-relaxed">1都6県比率 84.6%</p>
         </motion.div>
 
-        <motion.div className="prefecture-map__comparison-view absolute inset-0 z-20 flex flex-col md:flex-row justify-between items-center p-8 md:p-16 pointer-events-none" style={{ opacity: compareOpacity }}>
-          <div className="w-full md:w-1/3 mb-8 md:mb-0">
-            <h3 className="text-white text-3xl font-bold tracking-widest mb-4">首都圏比率比較</h3>
-            <p className="text-[#a0a0a0] text-sm tracking-widest">
-              1都6県とそれ以外で見る<br />
-              ファン居住地の違い
-            </p>
-          </div>
+        <motion.div
+          className="prefecture-map__comparison-view absolute inset-0 z-20 flex justify-end items-center p-8 md:p-16 pointer-events-none"
+          style={{ opacity: compareOpacity }}
+        >
+          <div className="prefecture-map__comparison-card w-full md:max-w-[480px] md:w-[480px] bg-[#111]/80 backdrop-blur-md border border-[#333] rounded-xl p-6 md:p-8 pointer-events-auto">
+            <div className="mb-8">
+              <h3 className="text-white text-2xl md:text-3xl font-bold tracking-widest mb-3">
+                首都圏比率比較
+              </h3>
+              <p className="text-white/65 text-sm tracking-widest leading-relaxed">
+                1都6県とそれ以外で見る
+                <br />
+                ファン居住地の違い
+              </p>
+            </div>
 
-          <div className="prefecture-map__comparison-card w-full md:w-[400px] bg-[#111]/80 backdrop-blur-md border border-[#333] rounded-xl p-6 pointer-events-auto">
-            <div className="space-y-6">
-              <div className="grid grid-cols-3 gap-2 border-b border-[#333] pb-2 text-[10px] text-[#888] font-mono">
-                <div>ARTIST</div>
-                <div className="text-right">首都圏</div>
-                <div className="text-right">首都圏外</div>
-              </div>
+            <div className="space-y-8">
+              {KANTO_RATIO_COMPARISON.map((item, index) => (
+                <div key={item.name} className="space-y-3">
+                  <div
+                    className="text-sm md:text-base font-bold tracking-wider"
+                    style={{ color: item.color }}
+                  >
+                    {item.name}
+                  </div>
 
-              <div className="grid grid-cols-3 gap-2 items-center text-sm">
-                <div className="font-bold text-[#00D1FF] truncate">F. ZIPPER</div>
-                <div className="text-right text-white font-mono">64.2%</div>
-                <div className="text-right text-white font-mono">35.8%</div>
-              </div>
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm md:text-base font-mono">
+                    <span className="text-white/90">
+                      首都圏{" "}
+                      <span className="font-bold tabular-nums">{item.kanto}%</span>
+                    </span>
+                    <span className="text-white/35">/</span>
+                    <span className="text-white/65">
+                      首都圏外{" "}
+                      <span className="font-bold tabular-nums text-white/80">{item.outside}%</span>
+                    </span>
+                  </div>
 
-              <div className="grid grid-cols-3 gap-2 items-center text-sm">
-                <div className="font-bold text-[#FF4EDB] truncate">RIIZE</div>
-                <div className="text-right text-white font-mono">68.1%</div>
-                <div className="text-right text-white font-mono">31.9%</div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 items-center text-sm">
-                <div className="font-bold text-[#A6FF4D] truncate">Vaundy</div>
-                <div className="text-right text-white font-mono">84.6%</div>
-                <div className="text-right text-white font-mono">15.4%</div>
-              </div>
+                  <KantoRatioBar color={item.color} kanto={item.kanto} delay={index * 0.12 + 0.15} />
+                </div>
+              ))}
             </div>
           </div>
         </motion.div>
