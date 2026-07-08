@@ -29,11 +29,19 @@ function getPrefColor(prefName: string, fallback: string) {
   return REGION_COLORS[prefName] || fallback;
 }
 
+const RANKING_HIGHLIGHT_PREFS = {
+  FZ: ["愛知県", "兵庫県", "大阪府", "静岡県", "茨城県", "三重県"],
+  RZ: ["兵庫県", "大阪府", "宮城県", "福岡県", "茨城県", "愛知県"],
+  VD: ["茨城県", "愛知県", "静岡県", "栃木県", "群馬県", "新潟県"],
+} as const;
+
 const RANKING_DATA = {
   FZ: {
     artist: "FRUITS ZIPPER",
     color: "#00D1FF",
-    text: "首都圏中心ながら、中部・関西からの来場も確認",
+    text: "首都圏に加えて、中部・関西からも",
+    kantoRatio: 62,
+    highlightPrefectures: RANKING_HIGHLIGHT_PREFS.FZ,
     items: [
       { pref: "東京都", val: 27.9 },
       { pref: "埼玉県", val: 12.0 },
@@ -50,7 +58,10 @@ const RANKING_DATA = {
   RZ: {
     artist: "RIIZE",
     color: "#FF4EDB",
-    text: "首都圏を軸に、遠方からの来場も目立つ",
+    text: "兵庫・大阪・宮城・福岡から来た人も",
+    kantoRatio: 65.7,
+    liveDateNote: "※ライブは2026年2月21日、22日。データは2026年2月21日のもの",
+    highlightPrefectures: RANKING_HIGHLIGHT_PREFS.RZ,
     items: [
       { pref: "東京都", val: 42.2 },
       { pref: "神奈川県", val: 14.7 },
@@ -67,7 +78,10 @@ const RANKING_DATA = {
   VD: {
     artist: "Vaundy",
     color: "#A6FF4D",
-    text: "首都圏からの来場が中心の都市型人流",
+    text: "全国ツアーのためか首都圏集中型に",
+    kantoRatio: 79,
+    liveDateNote: "※ライブは2026年2月14日、15日。データは2026年2月14日のもの",
+    highlightPrefectures: RANKING_HIGHLIGHT_PREFS.VD,
     items: [
       { pref: "東京都", val: 41.0 },
       { pref: "神奈川県", val: 17.0 },
@@ -84,9 +98,9 @@ const RANKING_DATA = {
 };
 
 const KANTO_RATIO_COMPARISON = [
-  { name: "FRUITS ZIPPER", color: "#00D1FF", kanto: 64.2, outside: 35.8 },
-  { name: "RIIZE", color: "#FF4EDB", kanto: 68.1, outside: 31.9 },
-  { name: "Vaundy", color: "#A6FF4D", kanto: 84.6, outside: 15.4 },
+  { name: "FRUITS ZIPPER", color: "#00D1FF", kanto: 62, outside: 38 },
+  { name: "RIIZE", color: "#FF4EDB", kanto: 65.7, outside: 34.3 },
+  { name: "Vaundy", color: "#A6FF4D", kanto: 79, outside: 21 },
 ] as const;
 
 function KantoRatioBar({
@@ -99,7 +113,7 @@ function KantoRatioBar({
   delay: number;
 }) {
   return (
-    <div className="relative h-3.5 rounded-full overflow-hidden bg-white/20">
+    <div className="relative h-2.5 md:h-3.5 rounded-full overflow-hidden bg-white/20">
       <motion.div
         className="absolute left-0 top-0 h-full rounded-full"
         style={{
@@ -183,13 +197,13 @@ function InsightCardContent({ id, data }: { id: string; data: typeof RANKING_DAT
 
   return (
     <motion.div
-      className={`prefecture-map__insight-card--${id.toLowerCase()} p-4 md:p-6 flex flex-col h-full`}
+      className={`prefecture-map__insight-card--${id.toLowerCase()} p-5 md:p-6 flex flex-col h-full`}
       initial={{ opacity: 0, y: 40 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -40 }}
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div className="prefecture-map__card-header mb-4">
+      <div className="prefecture-map__card-header mb-3 md:mb-4">
         <div className="prefecture-map__card-label text-[9px] text-white/70 tracking-widest mb-1 font-mono drop-shadow-md">
           LIVE FAN RESIDENCE
         </div>
@@ -202,9 +216,9 @@ function InsightCardContent({ id, data }: { id: string; data: typeof RANKING_DAT
         <div className="text-[10px] md:text-xs text-white/90 drop-shadow-sm">来場者の居住地 TOP10</div>
       </div>
 
-      <div className="prefecture-map__ranking-list flex flex-col gap-2 mb-4">
+      <div className="prefecture-map__ranking-list flex flex-col gap-1.5 md:gap-2 mb-3 md:mb-4">
         {data.items.map((item, i) => {
-          const isKanto = KANTO.includes(item.pref);
+          const isHighlighted = data.highlightPrefectures.includes(item.pref);
 
           return (
             <div
@@ -216,10 +230,10 @@ function InsightCardContent({ id, data }: { id: string; data: typeof RANKING_DAT
                   {i + 1}
                 </span>
                 <span
-                  className={`prefecture-map__ranking-prefecture ${!isKanto ? "prefecture-map__outside-kanto-marker font-bold" : "text-white/90"}`}
+                  className={`prefecture-map__ranking-prefecture ${isHighlighted ? "prefecture-map__highlight-prefecture font-bold" : "text-white/90"}`}
                   style={{
-                    color: !isKanto ? data.color : undefined,
-                    textShadow: !isKanto ? `0 0 8px ${data.color}60` : undefined
+                    color: isHighlighted ? data.color : undefined,
+                    textShadow: isHighlighted ? `0 0 8px ${data.color}60` : undefined
                   }}
                 >
                   {item.pref}
@@ -243,6 +257,12 @@ function InsightCardContent({ id, data }: { id: string; data: typeof RANKING_DAT
           );
         })}
       </div>
+
+      {"liveDateNote" in data && data.liveDateNote ? (
+        <p className="prefecture-map__live-date-note text-[9px] md:text-[10px] text-white/45 tracking-wide leading-relaxed mt-1">
+          {data.liveDateNote}
+        </p>
+      ) : null}
     </motion.div>
   );
 }
@@ -405,12 +425,25 @@ export function PrefectureMap() {
   });
 
   const [activeArtist, setActiveArtist] = React.useState<"FZ" | "RZ" | "VD" | null>(null);
+  const [isCompareVisible, setIsCompareVisible] = React.useState(false);
+  const [isMobileLayout, setIsMobileLayout] = React.useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches
+  );
+
+  React.useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const handler = (event: MediaQueryListEvent) => setIsMobileLayout(event.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   useMotionValueEvent(scrollYProgress, "change", (v) => {
     if (v >= 0.15 && v < 0.33) setActiveArtist("FZ");
     else if (v >= 0.33 && v < 0.50) setActiveArtist("RZ");
     else if (v >= 0.50 && v < 0.68) setActiveArtist("VD");
     else setActiveArtist(null);
+
+    setIsCompareVisible(v >= 0.66 && v < 0.85);
   });
 
   const introOpacity = useTransform(scrollYProgress, [0.02, 0.08, 0.12, 0.18], [0, 1, 1, 0]);
@@ -438,21 +471,30 @@ export function PrefectureMap() {
   const zoomTextOpacity = useTransform(scrollYProgress, [0.88, 0.95], [0, 1]);
 
   const isCardVisible = activeArtist !== null;
+  const spCompareLayout = isCompareVisible && isMobileLayout;
 
   return (
     <section ref={containerRef} className="section-prefecture-map h-[500vh] relative bg-[#050505]" style={{ position: "relative" }}>
-      <div className="sticky top-0 w-full h-[100vh] overflow-hidden flex items-center justify-center">
+      <div
+        className={`sticky top-0 w-full h-[100vh] overflow-hidden flex flex-col items-center md:block md:pt-0 md:pb-0 ${
+          spCompareLayout ? "justify-center py-3" : "justify-start pt-10 pb-2"
+        }`}
+      >
         <div className="prefecture-map__background absolute inset-0 bg-[#050505]" />
 
         <motion.div
-          className="prefecture-map__camera-zoom absolute inset-0 flex items-center justify-center pointer-events-none md:justify-start md:pl-[5%]"
+          className={`prefecture-map__camera-zoom relative flex w-full shrink-0 items-center justify-center pointer-events-none mt-1 md:absolute md:inset-0 md:mt-0 md:h-auto md:max-h-none md:min-h-0 md:justify-start md:pl-[5%] ${
+            spCompareLayout
+              ? "h-[min(34vh,260px)] min-h-[220px] max-h-[260px]"
+              : "h-[min(40vh,360px)] min-h-[280px] max-h-[360px]"
+          }`}
           style={{
             scale: mapScale,
             transformOrigin: useTransform(() => `${mapOriginX.get()} ${mapOriginY.get()}`),
             opacity: mapOpacity
           }}
         >
-          <div className="relative w-[92vw] max-w-[960px] aspect-square opacity-90 md:w-[64vw] md:max-w-[980px]">
+          <div className="relative w-[88vw] max-w-[400px] aspect-square opacity-95 md:w-[64vw] md:max-w-[980px] md:opacity-90">
             <div className="relative w-full h-full">
               <img
                 src={japanMapImage}
@@ -578,11 +620,12 @@ export function PrefectureMap() {
         </motion.div>
 
         <motion.div
-          className="prefecture-map__insight-card absolute right-4 md:right-[80px] top-1/2 -translate-y-1/2 w-[calc(100%-32px)] md:w-[240px] lg:w-[280px] bg-gradient-to-br from-white/[0.15] to-white/[0.02] backdrop-blur-[32px] border border-t-white/[0.35] border-l-white/[0.35] border-b-white/[0.1] border-r-white/[0.1] rounded-2xl shadow-[0_24px_60px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.4),inset_0_0_20px_rgba(255,255,255,0.05)] overflow-hidden z-30"
-          initial={{ opacity: 0, x: 80, filter: "blur(8px)" }}
+          className={`prefecture-map__insight-card relative z-30 mx-auto mt-6 mb-2 w-[calc(100vw-32px)] max-w-[380px] shrink-0 bg-gradient-to-br from-white/[0.15] to-white/[0.02] backdrop-blur-[32px] border border-t-white/[0.35] border-l-white/[0.35] border-b-white/[0.1] border-r-white/[0.1] rounded-[22px] shadow-[0_24px_60px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.4),inset_0_0_20px_rgba(255,255,255,0.05)] overflow-hidden md:absolute md:right-[80px] md:top-1/2 md:-translate-y-1/2 md:mx-0 md:mt-0 md:mb-0 md:w-[240px] lg:w-[280px] md:rounded-2xl ${isCardVisible ? "" : "max-md:hidden"}`}
+          initial={{ opacity: 0, x: isMobileLayout ? 0 : 80, y: isMobileLayout ? 40 : 0, filter: "blur(8px)" }}
           animate={{
             opacity: isCardVisible ? 1 : 0,
-            x: isCardVisible ? 0 : 80,
+            x: isMobileLayout ? 0 : isCardVisible ? 0 : 80,
+            y: isMobileLayout ? (isCardVisible ? 0 : 40) : 0,
             filter: isCardVisible ? "blur(0px)" : "blur(8px)",
             pointerEvents: isCardVisible ? "auto" : "none"
           }}
@@ -595,73 +638,85 @@ export function PrefectureMap() {
           </AnimatePresence>
         </motion.div>
 
-        <motion.div className="absolute z-10 flex flex-col items-center text-center px-4 max-w-3xl" style={{ opacity: introOpacity, y: introY }}>
-          <h2 className="prefecture-map__section-title text-4xl md:text-5xl lg:text-6xl text-white font-bold tracking-[0.1em] mb-8 md:mb-10">
-            ファンは、どこから東京ドームへ来たのか。
-          </h2>
-          <p
-            className="prefecture-map__section-copy text-base md:text-lg lg:text-xl tracking-[0.08em] font-normal"
-            style={{ color: "rgba(255,255,255,0.72)", lineHeight: 2.0 }}
-          >
-            首都圏からの来場が中心となる一方で、
-            <br />
-            公演によっては遠方から訪れるファンも少なくない。
-            <br />
-            居住地データから、ファンダムの広がりを読み解く。
-          </p>
+        <motion.div
+          className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center px-4 pointer-events-none"
+          style={{ opacity: introOpacity, y: introY }}
+        >
+          <div className="prefecture-map__intro-copy w-full max-w-3xl">
+            <h2 className="prefecture-map__section-title text-4xl md:text-5xl lg:text-6xl text-white font-bold tracking-[0.1em] mb-8 md:mb-10 break-keep">
+              ファンはどこから来たのか。
+            </h2>
+            <p
+              className="prefecture-map__section-copy text-base md:text-lg lg:text-xl tracking-[0.08em] font-normal"
+              style={{ color: "rgba(255,255,255,0.72)", lineHeight: 2.0 }}
+            >
+              東京ドームへ向かう――
+              <br />
+              ライブはその瞬間から始まっている。
+            </p>
+          </div>
         </motion.div>
 
-        <motion.div className="absolute top-1/4 left-[5%] z-10 max-w-md" style={{ opacity: fzOpacity, y: fzY }}>
-          <h3 className="prefecture-map__artist-name--fruits-zipper text-[#00D1FF] text-4xl md:text-5xl font-bold tracking-wider mb-4 drop-shadow-[0_0_10px_rgba(0,209,255,0.5)]">
+        <motion.div className="absolute top-14 md:top-1/4 left-0 right-0 md:left-[5%] md:right-auto z-10 max-w-md px-4 text-center md:text-left mx-auto md:mx-0" style={{ opacity: fzOpacity, y: fzY }}>
+          <h3 className="prefecture-map__artist-name--fruits-zipper text-[#00D1FF] text-2xl md:text-5xl font-bold tracking-wider mb-2 md:mb-4 drop-shadow-[0_0_10px_rgba(0,209,255,0.5)]">
             FRUITS ZIPPER
           </h3>
-          <p className="text-white/80 text-xl font-medium tracking-widest mb-2">首都圏中心ながら、中部・関西からの来場も確認</p>
-          <p className="text-[#a0a0a0] text-sm tracking-widest leading-relaxed">1都6県比率 64.2%</p>
+          <p className="text-white/80 text-sm md:text-xl font-medium tracking-widest mb-1 md:mb-2">{RANKING_DATA.FZ.text}</p>
+          <p className="text-[#a0a0a0] text-xs md:text-sm tracking-widest leading-relaxed">TOP10 の 1都3県比率　{RANKING_DATA.FZ.kantoRatio}％</p>
         </motion.div>
 
-        <motion.div className="absolute top-1/4 left-[5%] z-10 max-w-md" style={{ opacity: riizeOpacity, y: riizeY }}>
-          <h3 className="prefecture-map__artist-name--riize text-[#FF4EDB] text-4xl md:text-5xl font-bold tracking-wider mb-4 drop-shadow-[0_0_10px_rgba(255,78,219,0.5)]">
+        <motion.div className="absolute top-14 md:top-1/4 left-0 right-0 md:left-[5%] md:right-auto z-10 max-w-md px-4 text-center md:text-left mx-auto md:mx-0" style={{ opacity: riizeOpacity, y: riizeY }}>
+          <h3 className="prefecture-map__artist-name--riize text-[#FF4EDB] text-2xl md:text-5xl font-bold tracking-wider mb-2 md:mb-4 drop-shadow-[0_0_10px_rgba(255,78,219,0.5)]">
             RIIZE
           </h3>
-          <p className="text-white/80 text-xl font-medium tracking-widest mb-2">首都圏を軸に、遠方からの来場も目立つ</p>
-          <p className="text-[#a0a0a0] text-sm tracking-widest leading-relaxed">1都6県比率 68.1%</p>
+          <p className="text-white/80 text-sm md:text-xl font-medium tracking-widest mb-1 md:mb-2">{RANKING_DATA.RZ.text}</p>
+          <p className="text-[#a0a0a0] text-xs md:text-sm tracking-widest leading-relaxed">TOP10 の 1都3県比率　{RANKING_DATA.RZ.kantoRatio}％</p>
+          <p className="text-[#888] text-[10px] md:text-xs tracking-wide leading-relaxed mt-2">{RANKING_DATA.RZ.liveDateNote}</p>
         </motion.div>
 
-        <motion.div className="absolute top-1/4 left-[5%] z-10 max-w-md" style={{ opacity: vaundyOpacity, y: vaundyY }}>
-          <h3 className="prefecture-map__artist-name--vaundy text-[#A6FF4D] text-4xl md:text-5xl font-bold tracking-wider mb-4 drop-shadow-[0_0_10px_rgba(166,255,77,0.5)]">
+        <motion.div className="absolute top-14 md:top-1/4 left-0 right-0 md:left-[5%] md:right-auto z-10 max-w-md px-4 text-center md:text-left mx-auto md:mx-0" style={{ opacity: vaundyOpacity, y: vaundyY }}>
+          <h3 className="prefecture-map__artist-name--vaundy text-[#A6FF4D] text-2xl md:text-5xl font-bold tracking-wider mb-2 md:mb-4 drop-shadow-[0_0_10px_rgba(166,255,77,0.5)]">
             Vaundy
           </h3>
-          <p className="text-white/80 text-xl font-medium tracking-widest mb-2">首都圏からの来場が中心の都市型人流</p>
-          <p className="text-[#a0a0a0] text-sm tracking-widest leading-relaxed">1都6県比率 84.6%</p>
+          <p className="text-white/80 text-sm md:text-xl font-medium tracking-widest mb-1 md:mb-2">{RANKING_DATA.VD.text}</p>
+          <p className="text-[#a0a0a0] text-xs md:text-sm tracking-widest leading-relaxed">TOP10 の 1都3県比率　{RANKING_DATA.VD.kantoRatio}％</p>
+          <p className="text-[#888] text-[10px] md:text-xs tracking-wide leading-relaxed mt-2">{RANKING_DATA.VD.liveDateNote}</p>
         </motion.div>
 
         <motion.div
-          className="prefecture-map__comparison-view absolute inset-0 z-20 flex justify-end items-center p-8 md:p-16 pointer-events-none"
+          className={`prefecture-map__comparison-view relative z-20 flex w-full shrink-0 justify-center items-start mt-4 px-4 pointer-events-none md:absolute md:inset-0 md:mt-0 md:px-0 md:pb-0 md:justify-end md:items-center md:p-16 ${isCompareVisible ? "" : "max-md:hidden"}`}
           style={{ opacity: compareOpacity }}
         >
-          <div className="prefecture-map__comparison-card w-full md:max-w-[480px] md:w-[480px] bg-[#111]/80 backdrop-blur-md border border-[#333] rounded-xl p-6 md:p-8 pointer-events-auto">
-            <div className="mb-8">
-              <h3 className="text-white text-2xl md:text-3xl font-bold tracking-widest mb-3">
+          <div className="prefecture-map__comparison-card w-full max-w-[380px] md:max-w-[480px] md:w-[480px] bg-[#111]/80 backdrop-blur-md border border-[#333] rounded-[18px] md:rounded-xl p-4 md:p-8 pointer-events-auto">
+            <div className="mb-3 md:mb-8">
+              <h3 className="text-white text-lg md:text-3xl font-bold tracking-widest mb-1 md:mb-3">
                 首都圏比率比較
               </h3>
-              <p className="text-white/65 text-sm tracking-widest leading-relaxed">
-                1都6県とそれ以外で見る
-                <br />
-                ファン居住地の違い
+              <p className="text-white/65 text-[11px] md:text-sm tracking-wide md:tracking-widest leading-snug md:leading-relaxed">
+                <span className="md:hidden">
+                  初ドームの FRUITS ZIPPER は全国から
+                  <br />
+                  ドームツアー中の Vaundy は首都圏集中
+                </span>
+                <span className="hidden md:block">
+                  初ドームの FRUITS ZIPPER は全国から
+                  <br />
+                  ドームツアー中の Vaundy は首都圏集中
+                </span>
               </p>
             </div>
 
-            <div className="space-y-8">
+            <div className="space-y-3 md:space-y-8">
               {KANTO_RATIO_COMPARISON.map((item, index) => (
-                <div key={item.name} className="space-y-3">
+                <div key={item.name} className="space-y-1 md:space-y-3">
                   <div
-                    className="text-sm md:text-base font-bold tracking-wider"
+                    className="text-[11px] md:text-base font-bold tracking-wide md:tracking-wider"
                     style={{ color: item.color }}
                   >
                     {item.name}
                   </div>
 
-                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm md:text-base font-mono">
+                  <div className="flex flex-wrap items-baseline gap-x-1.5 md:gap-x-3 gap-y-0.5 text-[11px] md:text-base font-mono leading-tight">
                     <span className="text-white/90">
                       首都圏{" "}
                       <span className="font-bold tabular-nums">{item.kanto}%</span>
@@ -688,41 +743,22 @@ export function PrefectureMap() {
               className="w-full h-full object-cover"
               style={{ scale: domeBgScale, objectPosition: MAP_OBJECT_POSITION }}
             />
-            <div
-              className="prefecture-map__dome-center-glow absolute pointer-events-none"
-              style={{
-                left: `${TOKYO_DOME_POINT.x * 100}%`,
-                top: `${TOKYO_DOME_POINT.y * 100}%`,
-                transform: "translate(-50%, -50%)",
-              }}
-            >
-              <motion.div
-                className="absolute"
-                style={{
-                  width: 280,
-                  height: 280,
-                  left: "50%",
-                  top: "50%",
-                  transform: "translate(-50%, -50%)",
-                  background:
-                    "radial-gradient(circle, rgba(0,209,255,0.24) 0%, rgba(0,209,255,0.14) 28%, rgba(0,209,255,0.06) 55%, transparent 78%)",
-                  border: "none",
-                  outline: "none",
-                  boxShadow: "none",
-                  filter: "blur(12px)",
-                }}
-                animate={{ opacity: [0.35, 0.6, 0.35], scale: [1, 1.06, 1] }}
-                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-              />
-            </div>
             <div className="absolute inset-0 bg-[#050505]/60" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-[#050505]/80" />
           </div>
         </motion.div>
 
-        <motion.div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30" style={{ opacity: zoomTextOpacity }}>
-          <p className="text-white text-3xl md:text-5xl font-bold tracking-[0.2em] drop-shadow-2xl">
-            人は、ここを目指してあつまる。
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center pointer-events-none z-30 px-5 md:px-0"
+          style={{ opacity: zoomTextOpacity }}
+        >
+          <p className="text-white text-[38px] md:text-5xl font-bold tracking-[0.1em] md:tracking-[0.2em] leading-[1.4] md:leading-tight text-center drop-shadow-2xl w-[calc(100vw-40px)] max-w-[380px] md:w-auto md:max-w-none break-keep">
+            <span className="md:hidden">
+              人は、ここを目指して
+              <br />
+              あつまる。
+            </span>
+            <span className="hidden md:inline">人は、ここを目指してあつまる。</span>
           </p>
         </motion.div>
       </div>

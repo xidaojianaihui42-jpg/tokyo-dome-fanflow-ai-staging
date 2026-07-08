@@ -1,6 +1,7 @@
 import React, { useRef, useMemo, useEffect, useState } from "react";
 import { motion, useScroll, useTransform, MotionValue, useMotionValue, animate } from "motion/react";
 import tokyoDomeMapNorth from "../../imports/tokyo-dome-map-north.jpeg";
+import { useIsMobile } from "./ui/use-mobile";
 
 const MAP_BASE_SIZE = { width: 2881, height: 1921 };
 const TOKYO_DOME_POINT = {
@@ -163,13 +164,17 @@ function GenderLegend({
   align?: "left" | "right";
 }) {
   return (
-    <div className={`mt-8 flex flex-col gap-3 ${align === "right" ? "items-end" : "items-start"}`}>
+    <div
+      className={`mt-5 md:mt-8 flex flex-col gap-2.5 md:gap-3 ${
+        align === "right" ? "md:items-end items-center" : "md:items-start items-center"
+      }`}
+    >
       <div className="flex items-center gap-3">
         <span
           className="inline-block w-3 h-3 rounded-full shadow-[0_0_10px_currentColor]"
           style={{ backgroundColor: color, color }}
         />
-        <span className="text-white/80 text-sm tracking-[0.16em] font-mono">
+        <span className="text-white/80 text-[14px] md:text-base tracking-[0.16em] font-mono">
           女性 {female}%
         </span>
       </div>
@@ -178,12 +183,86 @@ function GenderLegend({
           className="inline-block w-3 h-3 rounded-full"
           style={{ backgroundColor: MALE }}
         />
-        <span className="text-white/70 text-sm tracking-[0.16em] font-mono">
+        <span className="text-white/70 text-[14px] md:text-base tracking-[0.16em] font-mono">
           男性 {male}%
         </span>
       </div>
     </div>
   );
+}
+
+function getMobileSvgViewBox(scene: string) {
+  if (scene === "fz" || scene === "rz" || scene === "vd") {
+    return "398 326 404 168";
+  }
+  if (scene === "age-comp") {
+    return "90 330 1020 240";
+  }
+  return "0 0 1200 800";
+}
+
+function MobileAgeAxisLabels({
+  opacity,
+  values,
+  className = "",
+}: {
+  opacity: MotionValue<number>;
+  values: number[];
+  className?: string;
+}) {
+  return (
+    <motion.div
+      className={`w-full max-w-[min(340px,calc(100vw-32px))] mx-auto grid grid-cols-4 gap-0.5 px-1 ${className}`}
+      style={{ opacity }}
+    >
+      {AGE_LABELS.map((label, i) => (
+        <div key={label} className="text-center leading-tight">
+          <p className="text-white font-bold font-mono text-[15px] tracking-wide">{label}</p>
+          <p className="text-[#a0a0a0] font-mono text-[13px] mt-0.5 tabular-nums">
+            {values[i].toFixed(1)}%
+          </p>
+        </div>
+      ))}
+    </motion.div>
+  );
+}
+
+function MobileIndividualAgeLabels({
+  currentScene,
+  fzAgeLabelOp,
+  rzAgeLabelOp,
+  vdAgeLabelOp,
+}: {
+  currentScene: string;
+  fzAgeLabelOp: MotionValue<number>;
+  rzAgeLabelOp: MotionValue<number>;
+  vdAgeLabelOp: MotionValue<number>;
+}) {
+  if (currentScene === "fz") {
+    return (
+      <div className="w-full mt-3 shrink-0">
+        <MobileAgeAxisLabels opacity={fzAgeLabelOp} values={AGE_LABEL_VALUES.fruitsZipper} />
+      </div>
+    );
+  }
+
+  if (currentScene === "rz") {
+    return (
+      <div className="w-full mt-3 shrink-0">
+        <MobileAgeAxisLabels opacity={rzAgeLabelOp} values={AGE_LABEL_VALUES.riize} />
+      </div>
+    );
+  }
+
+  if (currentScene === "vd") {
+    return (
+      <div className="w-full mt-3 shrink-0">
+        <MobileAgeAxisLabels opacity={vdAgeLabelOp} values={AGE_LABEL_VALUES.vaundy} />
+      </div>
+    );
+  }
+
+  return null;
 }
 
 const GENDER_COMPARISON_COLUMNS = [
@@ -218,13 +297,251 @@ function GenderComparisonColumn({
   );
 }
 
+const PERSON_ICON_PATH =
+  "M 0,-4 C 2.2,-4 4,-5.8 4,-8 C 4,-10.2 2.2,-12 0,-12 C -2.2,-12 -4,-10.2 -4,-8 C -4,-5.8 -2.2,-4 0,-4 Z M 0,-2 C -2.7,-2 -8,-0.7 -8,2 L -8,4 L 8,4 L 8,2 C 8,-0.7 2.7,-2 0,-2 Z";
+
+const AGE_COMPARISON_COLUMNS = [
+  {
+    name: "F. ZIPPER",
+    color: FZ_F,
+    dist: AGE_DIST.fruitsZipper,
+    values: AGE_LABEL_VALUES.fruitsZipper,
+    genderCounts: AGE_GENDER_COUNTS.fruitsZipper,
+  },
+  {
+    name: "RIIZE",
+    color: RZ_F,
+    dist: AGE_DIST.riize,
+    values: AGE_LABEL_VALUES.riize,
+    genderCounts: AGE_GENDER_COUNTS.riize,
+  },
+  {
+    name: "Vaundy",
+    color: VD_F,
+    dist: AGE_DIST.vaundy,
+    values: AGE_LABEL_VALUES.vaundy,
+    genderCounts: AGE_GENDER_COUNTS.vaundy,
+  },
+] as const;
+
+function getGlobalComparisonMorph(scroll: number) {
+  if (scroll <= 0.705) return 0;
+  if (scroll >= 0.775) return 1;
+  return (scroll - 0.705) / 0.07;
+}
+
+function buildCompactMorphParticles(
+  dist: readonly number[],
+  genderCounts: readonly { female: number; male: number }[],
+  femaleColor: string,
+  femaleRatio: number
+) {
+  const ageCenterX = 130;
+  const ageCenterY = 66;
+  const ageScale = 0.56;
+  const genderCenterX = 130;
+  const genderCenterY = 44;
+  const genderScale = 0.5;
+
+  return Array.from({ length: 100 }, (_, i) => {
+    const age = getAgePos(i, ageCenterX, ageCenterY, [...dist], ageScale);
+    const gender = getGridPos(i, genderCenterX, genderCenterY, genderScale);
+    return {
+      id: i,
+      ageX: age.x,
+      ageY: age.y,
+      genderX: gender.x,
+      genderY: gender.y,
+      ageFill: getAgeGenderColor(i, [...dist], [...genderCounts], femaleColor),
+      genderFill: i < femaleRatio ? femaleColor : MALE,
+    };
+  });
+}
+
+function StaticGenderBar({ f, color }: { f: number; color: string }) {
+  return (
+    <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden flex">
+      <div className="h-full rounded-l-full" style={{ width: `${f}%`, backgroundColor: color }} />
+      <div className="h-full bg-white flex-1 rounded-r-full" />
+    </div>
+  );
+}
+
+function MorphPictogram({
+  particle,
+  morph,
+  scale = 1,
+}: {
+  particle: ReturnType<typeof buildCompactMorphParticles>[number];
+  morph: MotionValue<number>;
+  scale?: number;
+}) {
+  const x = useTransform(morph, [0, 1], [particle.ageX, particle.genderX]);
+  const y = useTransform(morph, [0, 1], [particle.ageY, particle.genderY]);
+  const fill = useTransform(morph, (t) => (t < 0.5 ? particle.ageFill : particle.genderFill));
+
+  return <motion.path d={PERSON_ICON_PATH} style={{ x, y, fill, scale }} />;
+}
+
+function MobileCompactArtistRow({
+  name,
+  color,
+  dist,
+  values,
+  genderCounts,
+  female,
+  male,
+  morph,
+}: {
+  name: string;
+  color: string;
+  dist: readonly number[];
+  values: readonly number[];
+  genderCounts: readonly { female: number; male: number }[];
+  female: number;
+  male: number;
+  morph: MotionValue<number>;
+}) {
+  const ageLabelOp = useTransform(morph, [0, 0.28, 0.55], [1, 1, 0]);
+  const genderLabelOp = useTransform(morph, [0.25, 0.52, 1], [0, 1, 1]);
+
+  const viewBox = useTransform(morph, (t) => {
+    const age = { x: 8, y: -8, w: 244, h: 88 };
+    const gender = { x: 76, y: -12, w: 108, h: 108 };
+    const x = age.x + (gender.x - age.x) * t;
+    const y = age.y + (gender.y - age.y) * t;
+    const w = age.w + (gender.w - age.w) * t;
+    const h = age.h + (gender.h - age.h) * t;
+    return `${x} ${y} ${w} ${h}`;
+  });
+
+  const svgHeight = useTransform(morph, [0, 1], [58, 108]);
+  const svgMaxWidth = useTransform(morph, (t) => `${Math.round(320 - t * 212)}px`);
+
+  const particles = useMemo(
+    () => buildCompactMorphParticles(dist, genderCounts, color, female),
+    [dist, genderCounts, color, female]
+  );
+
+  return (
+    <article className="fandom-profile__mobile-compact-artist min-h-[152px] max-h-[178px] flex flex-col">
+      <h4
+        className="fandom-profile__mobile-compact-artist-name text-[13px] font-bold tracking-[0.1em] mb-1.5 pl-0.5"
+        style={{ color }}
+      >
+        {name}
+      </h4>
+
+      <div className="flex justify-center w-full shrink-0">
+        <motion.svg
+          viewBox={viewBox}
+          style={{ height: svgHeight, maxWidth: svgMaxWidth, width: "100%" }}
+          className="mx-auto"
+          preserveAspectRatio="xMidYMid meet"
+          aria-hidden="true"
+        >
+          {particles.map((particle) => (
+            <MorphPictogram key={particle.id} particle={particle} morph={morph} scale={0.92} />
+          ))}
+        </motion.svg>
+      </div>
+
+      <div className="relative h-[30px] mt-0 shrink-0">
+        <motion.div className="grid grid-cols-4 gap-0.5 px-0.5" style={{ opacity: ageLabelOp }}>
+          {AGE_LABELS.map((label, i) => (
+            <div key={label} className="text-center leading-tight">
+              <p className="text-white/70 font-bold font-mono text-[11px]">{label}</p>
+              <p className="text-white/55 font-mono text-[10px] mt-0.5 tabular-nums">
+                {values[i].toFixed(1)}%
+              </p>
+            </div>
+          ))}
+        </motion.div>
+
+        <motion.div
+          className="absolute inset-0 flex flex-col items-center justify-start px-1"
+          style={{ opacity: genderLabelOp }}
+        >
+          <p className="text-[11px] font-mono text-white/65 tracking-wide leading-none">
+            女性 {female}%
+            <span className="text-white/25 mx-1.5">/</span>
+            男性 {male}%
+          </p>
+          <div className="w-full mt-1">
+            <StaticGenderBar f={female} color={color} />
+          </div>
+        </motion.div>
+      </div>
+    </article>
+  );
+}
+
+const MOBILE_MORPH_ARTISTS = [
+  {
+    ...AGE_COMPARISON_COLUMNS[0],
+    female: GENDER_RATIO.fruitsZipper.female,
+    male: GENDER_RATIO.fruitsZipper.male,
+  },
+  {
+    ...AGE_COMPARISON_COLUMNS[1],
+    female: GENDER_RATIO.riize.female,
+    male: GENDER_RATIO.riize.male,
+  },
+  {
+    ...AGE_COMPARISON_COLUMNS[2],
+    female: GENDER_RATIO.vaundy.female,
+    male: GENDER_RATIO.vaundy.male,
+  },
+] as const;
+
+function MobileDemographicComparisonStack({
+  scrollYProgress,
+}: {
+  scrollYProgress: MotionValue<number>;
+}) {
+  const morph = useTransform(scrollYProgress, (s) => getGlobalComparisonMorph(s));
+  const ageTitleOp = useTransform(morph, [0, 0.32, 0.58], [1, 1, 0]);
+  const genderTitleOp = useTransform(morph, [0.22, 0.48, 1], [0, 1, 1]);
+
+  return (
+    <div className="fandom-profile__mobile-demographic-stack flex flex-col justify-center w-full h-full pt-[108px] pb-3 px-4 pointer-events-none">
+      <div className="relative h-7 mb-3 shrink-0">
+        <motion.h3
+          className="absolute inset-0 flex items-center justify-center text-white text-[17px] font-bold tracking-[0.2em]"
+          style={{ opacity: ageTitleOp }}
+        >
+          年代比較
+        </motion.h3>
+        <motion.h3
+          className="absolute inset-0 flex items-center justify-center text-white text-[17px] font-bold tracking-[0.2em]"
+          style={{ opacity: genderTitleOp }}
+        >
+          性別比較
+        </motion.h3>
+      </div>
+
+      <div className="flex flex-col gap-[18px] w-full max-w-[min(360px,calc(100vw-32px))] mx-auto shrink-0">
+        {MOBILE_MORPH_ARTISTS.map((artist) => (
+          <MobileCompactArtistRow key={artist.name} morph={morph} {...artist} />
+        ))}
+      </div>
+
+      <p className="fandom-profile__mobile-stack-footnote mt-3 shrink-0 text-[9px] text-white/45 text-center leading-[1.7] tracking-[0.02em] max-w-[min(320px,calc(100vw-40px))] mx-auto">
+        ※年代分析はLAPのデータから20代・30代・40代・50代を抽出して集計しています。
+      </p>
+    </div>
+  );
+}
+
 function AgeAxisLabels({
   opacity,
   centerX,
   y,
   values,
   spacing,
-  fontSize = 14
+  fontSize = 14,
+  percentSize,
+  lineGap = 18,
 }: {
   opacity: MotionValue<number>;
   centerX: number;
@@ -232,7 +549,11 @@ function AgeAxisLabels({
   values: number[];
   spacing: number;
   fontSize?: number;
+  percentSize?: number;
+  lineGap?: number;
 }) {
+  const pctSize = percentSize ?? fontSize - 2;
+
   return (
     <motion.g style={{ opacity }}>
       {AGE_LABELS.map((label, i) => (
@@ -250,9 +571,9 @@ function AgeAxisLabels({
           <tspan x={centerX + (i - 1.5) * spacing}>{label}</tspan>
           <tspan
             x={centerX + (i - 1.5) * spacing}
-            dy="18"
+            dy={lineGap}
             fill="#A0A0A0"
-            fontSize={fontSize - 2}
+            fontSize={pctSize}
             fontWeight="500"
           >
             {values[i].toFixed(1)}%
@@ -265,6 +586,7 @@ function AgeAxisLabels({
 
 export function FandomProfile() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start start", "end end"]
@@ -483,16 +805,24 @@ export function FandomProfile() {
   const vdAgeLabelOp = useTransform(scrollYProgress, [0.52, 0.54, 0.61, 0.64], [0, 1, 1, 0]);
   const compAgeOp = useTransform(scrollYProgress, [0.62, 0.65, 0.71, 0.74], [0, 1, 1, 0]);
   const compGenderOp = useTransform(scrollYProgress, [0.72, 0.75, 0.81, 0.84], [0, 1, 1, 0]);
+  const mobileMorphOp = useTransform(scrollYProgress, [0.60, 0.635, 0.835, 0.86], [0, 1, 1, 0]);
   const silhouetteOp = useTransform(scrollYProgress, [0.82, 0.85, 0.92, 0.95], [0, 1, 1, 0]);
 
   const ageNoteOpacity = useTransform(scrollYProgress, (s) => {
     if (s < 0.12) return 0;
     if (s <= 0.14) return (s - 0.12) / 0.02;
-    if (s >= 0.72 && s <= 0.84) return 0;
+    if (s >= 0.62 && s <= 0.84) return 0;
     if (s <= 0.82) return 1;
     if (s <= 0.84) return (0.84 - s) / 0.02;
     return 0;
   });
+
+  const isArtistScene =
+    currentScene === "fz" || currentScene === "rz" || currentScene === "vd";
+  const svgViewBox = isMobile ? getMobileSvgViewBox(currentScene) : "0 0 1200 800";
+  const showMobileAgeLabels = isMobile && isArtistScene;
+  const hideMainSvgPictograms =
+    isMobile && (currentScene === "gender-comp" || currentScene === "age-comp");
 
   return (
     <section ref={containerRef} className="section-fandom-profile relative h-[500vh] bg-[#050505]" style={{ position: "relative" }}>
@@ -532,7 +862,7 @@ export function FandomProfile() {
         />
 
         <motion.div
-          className="fandom-profile__artist-spotlight fandom-profile__artist-spotlight--age-comparison absolute inset-0 pointer-events-none"
+          className="fandom-profile__artist-spotlight fandom-profile__artist-spotlight--age-comparison absolute inset-0 pointer-events-none hidden md:block"
           style={{
             opacity: compAgeOp,
             background:
@@ -541,7 +871,7 @@ export function FandomProfile() {
         />
 
         <motion.div
-          className="fandom-profile__artist-spotlight fandom-profile__artist-spotlight--gender-comparison absolute inset-0 pointer-events-none"
+          className="fandom-profile__artist-spotlight fandom-profile__artist-spotlight--gender-comparison absolute inset-0 pointer-events-none hidden md:block"
           style={{
             opacity: compGenderOp,
             background:
@@ -549,78 +879,160 @@ export function FandomProfile() {
           }}
         />
 
+        <motion.div
+          className="fandom-profile__artist-spotlight fandom-profile__artist-spotlight--mobile-morph absolute inset-0 pointer-events-none md:hidden"
+          style={{
+            opacity: mobileMorphOp,
+            background:
+              "radial-gradient(circle at 50% 22%, rgba(0,209,255,0.10), transparent 32%), radial-gradient(circle at 50% 50%, rgba(255,78,219,0.10), transparent 32%), radial-gradient(circle at 50% 78%, rgba(166,255,77,0.08), transparent 32%)"
+          }}
+        />
+
         <div className="fandom-profile__dark-vignette absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_28%,rgba(0,0,0,0.75)_100%)]" />
 
         <div className="fandom-profile__people-cloud hidden" />
 
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-          <svg viewBox="0 0 1200 800" className="w-full h-full max-h-screen">
-            <AgeAxisLabels opacity={fzAgeLabelOp} centerX={600} y={525} values={AGE_LABEL_VALUES.fruitsZipper} spacing={90} />
-            <AgeAxisLabels opacity={rzAgeLabelOp} centerX={600} y={525} values={AGE_LABEL_VALUES.riize} spacing={90} />
-            <AgeAxisLabels opacity={vdAgeLabelOp} centerX={600} y={525} values={AGE_LABEL_VALUES.vaundy} spacing={90} />
+        <div
+          className={`absolute inset-0 flex justify-center pointer-events-none z-10 ${
+            showMobileAgeLabels
+              ? "flex-col items-center top-[44%] bottom-[84px] px-4"
+              : "items-center"
+          }`}
+        >
+          <svg
+            viewBox={svgViewBox}
+            preserveAspectRatio="xMidYMid meet"
+            className={
+              showMobileAgeLabels
+                ? "w-full max-w-[min(360px,calc(100vw-32px))] flex-1 min-h-0"
+                : "w-full h-full max-h-screen"
+            }
+          >
+            {!showMobileAgeLabels && (
+              <>
+                <AgeAxisLabels
+                  opacity={fzAgeLabelOp}
+                  centerX={600}
+                  y={525}
+                  values={AGE_LABEL_VALUES.fruitsZipper}
+                  spacing={90}
+                  fontSize={17}
+                  lineGap={20}
+                />
+                <AgeAxisLabels
+                  opacity={rzAgeLabelOp}
+                  centerX={600}
+                  y={525}
+                  values={AGE_LABEL_VALUES.riize}
+                  spacing={90}
+                  fontSize={17}
+                  lineGap={20}
+                />
+                <AgeAxisLabels
+                  opacity={vdAgeLabelOp}
+                  centerX={600}
+                  y={525}
+                  values={AGE_LABEL_VALUES.vaundy}
+                  spacing={90}
+                  fontSize={17}
+                  lineGap={20}
+                />
+              </>
+            )}
 
-            <AgeAxisLabels opacity={compAgeOp} centerX={220} y={525} values={AGE_LABEL_VALUES.fruitsZipper} spacing={70} fontSize={11} />
-            <AgeAxisLabels opacity={compAgeOp} centerX={600} y={525} values={AGE_LABEL_VALUES.riize} spacing={70} fontSize={11} />
-            <AgeAxisLabels opacity={compAgeOp} centerX={980} y={525} values={AGE_LABEL_VALUES.vaundy} spacing={70} fontSize={11} />
+            {!isMobile && (
+              <>
+                <AgeAxisLabels opacity={compAgeOp} centerX={220} y={525} values={AGE_LABEL_VALUES.fruitsZipper} spacing={70} fontSize={11} />
+                <AgeAxisLabels opacity={compAgeOp} centerX={600} y={525} values={AGE_LABEL_VALUES.riize} spacing={70} fontSize={11} />
+                <AgeAxisLabels opacity={compAgeOp} centerX={980} y={525} values={AGE_LABEL_VALUES.vaundy} spacing={70} fontSize={11} />
+              </>
+            )}
 
-            <g className="fandom-profile__fan-silhouette">
+            <g className="fandom-profile__fan-silhouette" style={{ opacity: hideMainSvgPictograms ? 0 : 1 }}>
               {items.map((item) => (
                 <PersonIcon key={item.id} data={item} progress={compositeProgress} />
               ))}
             </g>
           </svg>
+
+          {showMobileAgeLabels && (
+            <MobileIndividualAgeLabels
+              currentScene={currentScene}
+              fzAgeLabelOp={fzAgeLabelOp}
+              rzAgeLabelOp={rzAgeLabelOp}
+              vdAgeLabelOp={vdAgeLabelOp}
+            />
+          )}
         </div>
 
         <motion.div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center px-4" style={{ opacity: introOp }}>
           <h2 className="fandom-profile__section-title text-4xl md:text-5xl text-white font-bold tracking-[0.1em] mb-8">
-            集まったのは、<br className="md:hidden" />どんな人たちなのか。
+            ここに集まったのは、<br className="md:hidden" />どんな人たちなのか
           </h2>
-          <p className="fandom-profile__section-copy text-[#a0a0a0] text-lg md:text-xl tracking-[0.1em] leading-loose">
-            人流の先には<br />それぞれの物語がある。
-          </p>
         </motion.div>
 
-        <motion.div className="fandom-profile__people-grid--fruits-zipper absolute top-1/4 left-[10%] z-20 max-w-sm" style={{ opacity: fzTextOp }}>
-          <h3 className="fandom-profile__artist-name--fruits-zipper text-[#00D1FF] text-4xl md:text-5xl font-bold tracking-widest mb-4">
+        <motion.div
+          className="fandom-profile__people-grid--fruits-zipper absolute z-20 w-full max-w-sm px-5 pt-14 top-0 left-0 right-0 mx-auto flex flex-col items-center text-center md:top-1/4 md:left-[10%] md:right-auto md:mx-0 md:px-0 md:pt-0 md:items-start md:text-left"
+          style={{ opacity: fzTextOp }}
+        >
+          <h3 className="fandom-profile__artist-name--fruits-zipper text-[#00D1FF] text-[28px] md:text-6xl font-bold tracking-widest mb-2 md:mb-4">
             FRUITS ZIPPER
           </h3>
-          <p className="fandom-profile__scene-copy text-white/90 text-lg tracking-wider leading-relaxed">
+          <p className="fandom-profile__scene-copy text-white/90 text-[17px] md:text-xl tracking-wide md:tracking-wider leading-relaxed">
             20〜50代で見ると<br />年代・性別ともにバランス型
           </p>
           <GenderLegend color={FZ_F} female={GENDER_RATIO.fruitsZipper.female} male={GENDER_RATIO.fruitsZipper.male} />
         </motion.div>
 
-        <motion.div className="fandom-profile__people-grid--riize absolute top-1/4 right-[10%] z-20 max-w-sm text-right" style={{ opacity: rzTextOp }}>
-          <h3 className="fandom-profile__artist-name--riize text-[#FF4EDB] text-4xl md:text-5xl font-bold tracking-widest mb-4">
+        <motion.div
+          className="fandom-profile__people-grid--riize absolute z-20 w-full max-w-sm px-5 pt-14 top-0 left-0 right-0 mx-auto flex flex-col items-center text-center md:top-1/4 md:right-[10%] md:left-auto md:mx-0 md:px-0 md:pt-0 md:items-end md:text-right"
+          style={{ opacity: rzTextOp }}
+        >
+          <h3 className="fandom-profile__artist-name--riize text-[#FF4EDB] text-[28px] md:text-6xl font-bold tracking-widest mb-2 md:mb-4">
             RIIZE
           </h3>
-          <p className="fandom-profile__scene-copy text-white/90 text-lg tracking-wider leading-relaxed">
+          <p className="fandom-profile__scene-copy text-white/90 text-[17px] md:text-xl tracking-wide md:tracking-wider leading-relaxed">
             50代女性を中心に<br />強い女性支持が目立つ
           </p>
           <GenderLegend color={RZ_F} female={GENDER_RATIO.riize.female} male={GENDER_RATIO.riize.male} align="right" />
         </motion.div>
 
-        <motion.div className="fandom-profile__people-grid--vaundy absolute top-[15%] left-[10%] z-20 max-w-sm" style={{ opacity: vdTextOp }}>
-          <h3 className="fandom-profile__artist-name--vaundy text-[#A6FF4D] text-4xl md:text-5xl font-bold tracking-widest mb-4">
+        <motion.div
+          className="fandom-profile__people-grid--vaundy absolute z-20 w-full max-w-sm px-5 pt-14 top-0 left-0 right-0 mx-auto flex flex-col items-center text-center md:top-[15%] md:left-[10%] md:right-auto md:mx-0 md:px-0 md:pt-0 md:items-start md:text-left"
+          style={{ opacity: vdTextOp }}
+        >
+          <h3 className="fandom-profile__artist-name--vaundy text-[#A6FF4D] text-[28px] md:text-6xl font-bold tracking-widest mb-2 md:mb-4">
             Vaundy
           </h3>
-          <p className="fandom-profile__scene-copy text-white/90 text-lg tracking-wider leading-relaxed">
+          <p className="fandom-profile__scene-copy text-white/90 text-[17px] md:text-xl tracking-wide md:tracking-wider leading-relaxed">
             50代を中心に<br />幅広い年代から支持
           </p>
           <GenderLegend color={VD_F} female={GENDER_RATIO.vaundy.female} male={GENDER_RATIO.vaundy.male} />
         </motion.div>
 
-        <motion.div className="fandom-profile__age-comparison absolute top-[10%] inset-x-0 z-20 flex flex-col items-center" style={{ opacity: compAgeOp }}>
-          <h3 className="fandom-profile__age-chart text-white text-3xl font-bold tracking-[0.2em] mb-12">年代比較</h3>
-          <div className="w-full max-w-[1200px] flex justify-between px-12 mt-[45vh]">
+        <motion.div
+          className="fandom-profile__age-comparison hidden md:flex absolute inset-0 z-20 flex-col pointer-events-none overflow-hidden"
+          style={{ opacity: compAgeOp }}
+        >
+          <div className="shrink-0 pt-[10vh] text-center px-4">
+            <h3 className="fandom-profile__age-chart text-white text-3xl font-bold tracking-[0.2em]">
+              年代比較
+            </h3>
+          </div>
+
+          <div className="w-full max-w-[1200px] mx-auto flex justify-between px-12 mt-[45vh]">
             <div className="text-[#00D1FF] font-bold tracking-widest text-lg w-32 text-center">F. ZIPPER</div>
             <div className="text-[#FF4EDB] font-bold tracking-widest text-lg w-32 text-center">RIIZE</div>
             <div className="text-[#A6FF4D] font-bold tracking-widest text-lg w-32 text-center">Vaundy</div>
           </div>
+
+          <p className="fandom-profile__age-comparison-footnote absolute bottom-6 left-1/2 -translate-x-1/2 max-w-[520px] px-4 text-xs text-white/50 text-center leading-relaxed tracking-[0.03em]">
+            ※年代分析はLAPのデータから20代・30代・40代・50代を抽出して集計しています。
+          </p>
         </motion.div>
 
         <motion.div
-          className="fandom-profile__gender-comparison absolute inset-0 z-20 flex flex-col pointer-events-none"
+          className="fandom-profile__gender-comparison hidden md:flex absolute inset-0 z-20 flex-col pointer-events-none overflow-hidden"
           style={{ opacity: compGenderOp }}
         >
           <div className="shrink-0 pt-[10vh] text-center px-4">
@@ -629,31 +1041,38 @@ export function FandomProfile() {
             </h3>
           </div>
 
-          <div className="fandom-profile__gender-comparison-columns w-full max-w-[1200px] mx-auto px-6 md:px-12 flex justify-between gap-2 md:gap-4 mt-[48vh] md:mt-[50vh]">
+          <div className="fandom-profile__gender-comparison-columns w-full max-w-[1200px] mx-auto px-12 flex justify-between gap-4 mt-[50vh]">
             {GENDER_COMPARISON_COLUMNS.map((column) => (
               <GenderComparisonColumn key={column.name} {...column} />
             ))}
           </div>
 
-          <p className="fandom-profile__gender-comparison-footnote absolute bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 max-w-[520px] px-4 text-[11px] md:text-xs text-white/50 text-center leading-relaxed tracking-[0.03em]">
+          <p className="fandom-profile__gender-comparison-footnote absolute bottom-6 left-1/2 -translate-x-1/2 max-w-[520px] px-4 text-xs text-white/50 text-center leading-relaxed tracking-[0.03em]">
             ※年代分析はLAPのデータから20代・30代・40代・50代を抽出して集計しています。
           </p>
+        </motion.div>
+
+        <motion.div
+          className="fandom-profile__mobile-demographic-morph-section md:hidden absolute inset-0 z-20 overflow-hidden pointer-events-none"
+          style={{ opacity: mobileMorphOp }}
+        >
+          <MobileDemographicComparisonStack scrollYProgress={scrollYProgress} />
         </motion.div>
 
         <motion.div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none" style={{ opacity: silhouetteOp }}>
           <div className="bg-[#050505]/70 border border-white/10 px-10 py-8 rounded-2xl backdrop-blur-md text-center shadow-2xl">
             <p className="fandom-profile__scene-copy text-white text-2xl md:text-3xl tracking-[0.15em] leading-[2.5]">
-              同じ会場に集まる。<br />しかし、その顔ぶれは違う。
+              同じ会場に集まる。<br />しかし、その顔ぶれは異なる。
             </p>
             <div className="w-12 h-[1px] bg-[#333] mx-auto my-8" />
             <p className="text-[#a0a0a0] text-lg md:text-xl tracking-widest">
-              人流は、ファンのかたちを映し出す。
+              人流は、ファンの形を映し出す。
             </p>
           </div>
         </motion.div>
 
         <motion.p
-          className="fandom-profile__age-data-note absolute bottom-6 right-4 md:bottom-8 md:right-10 z-25 max-w-[300px] text-[10px] md:text-[11px] text-white/50 leading-[1.9] tracking-[0.03em] text-right pointer-events-none"
+          className="fandom-profile__age-data-note absolute bottom-3 left-1/2 -translate-x-1/2 z-25 max-w-[min(340px,92vw)] px-3 text-[10px] text-white/50 leading-[1.9] tracking-[0.03em] text-center pointer-events-none md:bottom-8 md:right-10 md:left-auto md:translate-x-0 md:max-w-[300px] md:px-0 md:text-[11px] md:text-right"
           style={{ opacity: ageNoteOpacity }}
         >
           ※年代分析はLAPのデータから20代・30代・40代・50代を抽出して集計しています。

@@ -1,5 +1,5 @@
-import React, { useRef } from "react";
-import { motion, useScroll, useTransform, MotionValue } from "motion/react";
+import React, { useRef, useState } from "react";
+import { motion, useScroll, useTransform, useMotionValueEvent, MotionValue } from "motion/react";
 import tokyoDomeMapNorth from "../../imports/tokyo-dome-map-north.jpeg";
 
 const MAP_BASE_SIZE = { width: 2881, height: 1921 };
@@ -120,8 +120,7 @@ function useInterpolatedPercent(progress: MotionValue<number>, data: number[]) {
 
 function useSteppedPercent(progress: MotionValue<number>, data: number[]) {
   return useTransform(progress, (p) => {
-    const steps = data.length - 1;
-    const i = Math.min(Math.floor(p * steps), steps);
+    const i = getTimelineStepIndex(p, data.length);
     return data[i];
   });
 }
@@ -213,7 +212,7 @@ function compDotGlowFilter(color: string, tier: CompDotGlowTier) {
 }
 
 function mapPeakBoost(profileKey: "fz" | "riize" | "vaundy", progress: number) {
-  const step = Math.min(Math.floor(progress * 8), 8);
+  const step = getComparisonStep(progress);
   if (profileKey === "fz" && (step === 5 || step === 6)) return 1.2;
   if (profileKey === "riize" && step === 7) return 1.22;
   if (profileKey === "vaundy" && (step === 6 || step === 7)) return 1.25;
@@ -367,22 +366,54 @@ const CapacityIndicator = ({
   progress,
   data,
   labels,
-  color
+  color,
+  mobile = false,
 }: {
   progress: MotionValue<number>;
   data: number[];
   labels: string[];
   color: string;
+  mobile?: boolean;
 }) => {
   const percent = useInterpolatedPercent(progress, data);
   const percentStr = useTransform(percent, val => `${val.toFixed(1)}%`);
   const barWidth = useTransform(percent, val => `${val}%`);
 
   const timeStr = useTransform(progress, (p) => {
-    const steps = labels.length - 1;
-    const i = Math.min(Math.floor(p * steps), steps);
+    const i = getTimelineStepIndex(p, labels.length);
     return labels[i];
   });
+
+  if (mobile) {
+    return (
+      <div className="arrival-time__capacity-indicator arrival-time__capacity-indicator--mobile w-[calc(100vw-48px)] max-w-[360px] flex flex-col items-center">
+        <div className="arrival-time__capacity-label flex justify-between w-full items-baseline mb-2">
+          <motion.span className="arrival-time__capacity-time-label text-[#e0e0e0] text-xs font-mono tracking-wide">
+            現在：
+            <motion.span>{timeStr}</motion.span>
+          </motion.span>
+          <motion.span
+            className="arrival-time__capacity-percent font-mono font-bold text-2xl"
+            style={{ color }}
+          >
+            {percentStr}
+          </motion.span>
+        </div>
+
+        <div className="arrival-time__capacity-bar w-full h-[8px] rounded-full overflow-hidden bg-white/12 relative">
+          <motion.div
+            className="arrival-time__capacity-bar-fill h-full rounded-full absolute left-0 top-0"
+            style={{ width: barWidth, backgroundColor: color }}
+          />
+        </div>
+
+        <div className="arrival-time__capacity-range mt-2 flex justify-between w-full text-[10px] text-[#666] font-mono tracking-wide">
+          <span>8時間前</span>
+          <span>開演</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="arrival-time__capacity-indicator w-[280px] md:w-[360px] flex flex-col items-center">
@@ -405,6 +436,60 @@ const CapacityIndicator = ({
         />
       </div>
     </div>
+  );
+};
+
+function MobileTimeScale({
+  progress,
+  color,
+  opacity,
+}: {
+  progress: MotionValue<number>;
+  color: string;
+  opacity: MotionValue<number>;
+}) {
+  const [activeStep, setActiveStep] = useState(0);
+
+  useMotionValueEvent(progress, "change", (p) => {
+    setActiveStep(getComparisonStep(p));
+  });
+
+  React.useEffect(() => {
+    setActiveStep(getComparisonStep(progress.get()));
+  }, [progress]);
+
+  return (
+    <motion.div
+      className="arrival-time__mobile-timeline md:hidden absolute left-7 top-[26%] h-[52%] flex flex-col justify-between z-[12] pointer-events-none border-l border-white/10 pl-2.5"
+      style={{ opacity }}
+    >
+      {TIMELINE_LABELS.map((item, i) => {
+        const isActive = i === activeStep;
+
+        return (
+          <div
+            key={item.label}
+            className={`${item.cls} relative flex items-center gap-1.5 pl-0.5`}
+          >
+            <span
+              className="w-1.5 h-1.5 rounded-full shrink-0"
+              style={{
+                backgroundColor: color,
+                opacity: isActive ? 1 : 0,
+                boxShadow: isActive ? `0 0 6px ${color}` : undefined,
+              }}
+            />
+            <span
+              className={`text-[11px] font-mono tracking-[0.02em] leading-none ${
+                isActive ? "text-white/85 font-bold" : "text-white/[0.38] font-semibold"
+              }`}
+            >
+              {item.label}
+            </span>
+          </div>
+        );
+      })}
+    </motion.div>
   );
 };
 
@@ -471,6 +556,31 @@ const S06_DATA = {
   riize: [1.8, 8.8, 9.7, 14.5, 18.0, 27.6, 40.3, 76.3, 100],
 };
 
+const COMPARISON_TIME_LABELS = ["8時間", "7時間", "6時間", "5時間", "4時間", "3時間", "2時間", "1時間", "開演"] as const;
+const COMPARE_TIME_SCROLL_START = 0.57;
+const COMPARE_TIME_SCROLL_END = 0.94;
+
+function clampProgress(progress: number) {
+  return Math.max(0, Math.min(1, progress));
+}
+
+function getTimelineStepIndex(progress: number, slotCount: number) {
+  const clamped = clampProgress(progress);
+  return Math.min(Math.floor(clamped * slotCount), slotCount - 1);
+}
+
+function getComparisonStep(progress: number) {
+  return getTimelineStepIndex(progress, COMPARISON_TIME_LABELS.length);
+}
+
+function getComparisonCopyText(step: number) {
+  if (step === 1) return "RIIZE はこの時間から動きが見られた。";
+  if (step === 6) return "FRUITS ZIPPER はすでに7割が到着していた。";
+  if (step === 7) return "Vaundy は開演直前に最も集中していた。";
+  if (step === 8) return "3つのドームは熱量に包まれる。";
+  return "同じ東京ドームでも、人の集まり方は違った。";
+}
+
 type ArrivalProfileStep = { label: string; hourly: number; cumulative: number };
 
 const ARRIVAL_TIME_PROFILE: Record<"fz" | "riize" | "vaundy", ArrivalProfileStep[]> = {
@@ -515,8 +625,7 @@ function useSteppedProfileField(
   field: "cumulative" | "hourly"
 ) {
   return useTransform(progress, (p) => {
-    const steps = profile.length - 1;
-    const i = Math.min(Math.floor(p * steps), steps);
+    const i = getTimelineStepIndex(p, profile.length);
     return profile[i][field];
   });
 }
@@ -543,7 +652,7 @@ function mapEarlyArtistBoost(
   progress: number,
   cumulative: number
 ) {
-  const step = Math.min(Math.floor(progress * 8), 8);
+  const step = getComparisonStep(progress);
 
   if (profileKey === "fz") {
     if (step >= 2 && step <= 3) return 1.18;
@@ -606,6 +715,188 @@ const MiniDomeBase = ({ children }: { children: React.ReactNode }) => (
     {children}
   </svg>
 );
+
+function laneRandom(seed: number) {
+  const value = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
+  return value - Math.floor(value);
+}
+
+type LaneParticleConfig = {
+  id: number;
+  side: "left" | "right" | "center";
+  startX: number;
+  endX: number;
+  y: number;
+  size: number;
+  duration: number;
+  delay: number;
+  brightness: number;
+};
+
+function generateLaneParticles(count: number): LaneParticleConfig[] {
+  return Array.from({ length: count }, (_, i) => {
+    const sideRoll = laneRandom(i * 3.17);
+    const side: LaneParticleConfig["side"] =
+      sideRoll < 0.4 ? "left" : sideRoll < 0.8 ? "right" : "center";
+    const y = 18 + laneRandom(i * 5.11) * 64;
+    const anchorX = 46 + laneRandom(i * 7.03) * 8;
+    const duration = 2.4 + laneRandom(i * 13.7) * 2.2;
+    const delay = laneRandom(i * 17.3) * 3.2;
+    const distToCenter = Math.abs(anchorX - 50);
+    const brightness = 0.55 + (1 - distToCenter / 50) * 0.45;
+    const size = 1.5 + laneRandom(i * 11.9) * 2.5 + (side === "center" ? 0.35 : 0);
+
+    if (side === "left") {
+      const startX = 5 + laneRandom(i * 19.1) * 36;
+      const endX = 44 + laneRandom(i * 23.5) * 12;
+      return { id: i, side, startX, endX, y, size, duration, delay, brightness };
+    }
+
+    if (side === "right") {
+      const startX = 59 + laneRandom(i * 19.1) * 36;
+      const endX = 44 + laneRandom(i * 23.5) * 12;
+      return { id: i, side, startX, endX, y, size, duration, delay, brightness };
+    }
+
+    return {
+      id: i,
+      side,
+      startX: anchorX,
+      endX: anchorX,
+      y,
+      size,
+      duration: 1.4 + laneRandom(i * 29.1) * 1.6,
+      delay,
+      brightness: Math.min(1, brightness + 0.15),
+    };
+  });
+}
+
+const LANE_PARTICLES = generateLaneParticles(56);
+
+function laneGrainStyle(size: number, color: string, brightness: number) {
+  const glow = Math.max(2, size * 1.6);
+  const halo = Math.max(4, size * 2.8);
+  return {
+    width: size,
+    height: size,
+    background: `radial-gradient(circle at 38% 38%, rgba(255,255,255,${0.55 + brightness * 0.4}) 0%, ${color} 42%, ${color}cc 68%, transparent 100%)`,
+    boxShadow: `0 0 ${glow}px ${color}${Math.round(brightness * 180)
+      .toString(16)
+      .padStart(2, "0")}, 0 0 ${halo}px ${color}${Math.round(brightness * 60)
+      .toString(16)
+      .padStart(2, "0")}`,
+  } as const;
+}
+
+function LaneGrain({
+  particle,
+  color,
+}: {
+  particle: LaneParticleConfig;
+  color: string;
+}) {
+  const grainStyle = laneGrainStyle(particle.size, color, particle.brightness);
+  const baseStyle = {
+    ...grainStyle,
+    top: `${particle.y}%`,
+    marginTop: -particle.size / 2,
+    marginLeft: -particle.size / 2,
+  };
+
+  if (particle.side === "center") {
+    return (
+      <motion.span
+        className="absolute block rounded-full pointer-events-none will-change-[opacity,transform]"
+        style={{ ...baseStyle, left: `${particle.startX}%` }}
+        animate={{
+          opacity: [0.45 * particle.brightness, 1 * particle.brightness, 0.55 * particle.brightness],
+          scale: [1, 1.2, 1],
+        }}
+        transition={{
+          duration: particle.duration,
+          repeat: Infinity,
+          ease: "easeInOut",
+          delay: particle.delay,
+        }}
+      />
+    );
+  }
+
+  return (
+    <motion.span
+      className="absolute block rounded-full pointer-events-none will-change-[opacity,left]"
+      style={baseStyle}
+      initial={{ left: `${particle.startX}%`, opacity: 0.25 * particle.brightness }}
+      animate={{
+        left: [`${particle.startX}%`, `${particle.endX}%`, `${particle.endX}%`],
+        opacity: [0.3 * particle.brightness, 0.92 * particle.brightness, 0.38 * particle.brightness],
+      }}
+      transition={{
+        duration: particle.duration,
+        repeat: Infinity,
+        ease: "easeInOut",
+        delay: particle.delay,
+      }}
+    />
+  );
+}
+
+/** SP compact comparison cards — horizontal lane with particles flowing inward. */
+function MiniFlowLane({
+  progress,
+  data,
+  color,
+  className,
+}: {
+  progress: MotionValue<number>;
+  data: number[];
+  color: string;
+  className?: string;
+}) {
+  const fillOpacity = useTransform(useSteppedPercent(progress, data), (v) =>
+    Math.min(1, 0.38 + (v / 100) * 0.62)
+  );
+  const centerGlowOpacity = useTransform(useSteppedPercent(progress, data), (v) =>
+    0.08 + (v / 100) * 0.28
+  );
+
+  return (
+    <div className="relative w-full h-full overflow-hidden" aria-hidden="true">
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: `
+            linear-gradient(90deg, rgba(0,0,0,0.45) 0%, transparent 12%, transparent 88%, rgba(0,0,0,0.45) 100%),
+            linear-gradient(90deg, ${color}08 0%, transparent 18%, transparent 82%, ${color}08 100%)
+          `,
+        }}
+      />
+
+      <div className="absolute inset-x-[5%] top-1/2 h-px -translate-y-1/2 bg-white/[0.05]" />
+      <div
+        className="absolute inset-x-[5%] top-1/2 h-px -translate-y-1/2 opacity-40"
+        style={{
+          background: `linear-gradient(90deg, transparent 0%, ${color}22 50%, transparent 100%)`,
+        }}
+      />
+
+      <motion.div
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[26%] h-[78%] rounded-full pointer-events-none"
+        style={{
+          background: `radial-gradient(ellipse at center, ${color}35 0%, ${color}12 42%, transparent 72%)`,
+          opacity: centerGlowOpacity,
+        }}
+      />
+
+      <motion.div className={`absolute inset-0 ${className ?? ""}`} style={{ opacity: fillOpacity }}>
+        {LANE_PARTICLES.map((particle) => (
+          <LaneGrain key={particle.id} particle={particle} color={color} />
+        ))}
+      </motion.div>
+    </div>
+  );
+}
 
 const CompSwarmLogic = ({
   progress,
@@ -755,6 +1046,96 @@ const RaceTrackBar = ({
   );
 };
 
+const MOBILE_COMPARE_ARTISTS = [
+  {
+    title: "FRUITS ZIPPER",
+    insightLabel: "早め来場型",
+    color: "#00D1FF",
+    data: S06_DATA.fz,
+    swarmClassName: "arrival-time__comparison-particles--fz",
+    domeClassName: "arrival-time__comparison-dome--fruits-zipper",
+    percentClassName: "arrival-time__comparison-percent--fruits-zipper",
+    paths: COMP_PATHS.fz,
+    profileKey: "fz" as const,
+  },
+  {
+    title: "RIIZE",
+    insightLabel: "中間型",
+    color: "#FF4EDB",
+    data: S06_DATA.riize,
+    swarmClassName: "arrival-time__comparison-particles--riize",
+    domeClassName: "arrival-time__comparison-dome--riize",
+    percentClassName: "arrival-time__comparison-percent--riize",
+    paths: COMP_PATHS.riize,
+    profileKey: "riize" as const,
+  },
+  {
+    title: "Vaundy",
+    insightLabel: "直前集中型",
+    color: "#A6FF4D",
+    data: S06_DATA.vaundy,
+    swarmClassName: "arrival-time__comparison-particles--vaundy",
+    domeClassName: "arrival-time__comparison-dome--vaundy",
+    percentClassName: "arrival-time__comparison-percent--vaundy",
+    paths: COMP_PATHS.vaundy,
+    profileKey: "vaundy" as const,
+  },
+] as const;
+
+function MobileComparisonView({
+  progress,
+  compTimeUpper,
+  compTimeLower,
+  compCopyText,
+}: {
+  progress: MotionValue<number>;
+  compTimeUpper: MotionValue<string>;
+  compTimeLower: MotionValue<string>;
+  compCopyText: MotionValue<string>;
+}) {
+  return (
+    <div className="arrival-time__mobile-comparison w-[calc(100vw-40px)] max-w-[380px] flex flex-col items-center gap-2 pt-2">
+      <div className="arrival-time__mobile-comparison-time text-center leading-none mb-1">
+        <motion.span className="block text-white/45 text-[11px] font-mono tracking-[0.35em] uppercase">
+          {compTimeUpper}
+        </motion.span>
+        <motion.span
+          className="block text-white font-bold text-[44px] tracking-tight mt-0.5"
+          style={{ textShadow: "0 0 40px rgba(255,255,255,0.15)" }}
+        >
+          {compTimeLower}
+        </motion.span>
+      </div>
+
+      <div className="w-full flex flex-col gap-2.5">
+        {MOBILE_COMPARE_ARTISTS.map((artist) => (
+          <ComparisonDome
+            key={artist.title}
+            compact
+            title={artist.title}
+            insightLabel={artist.insightLabel}
+            color={artist.color}
+            progress={progress}
+            data={[...artist.data]}
+            swarmClassName={artist.swarmClassName}
+            domeClassName={artist.domeClassName}
+            percentClassName={artist.percentClassName}
+            paths={artist.paths}
+            profileKey={artist.profileKey}
+          />
+        ))}
+      </div>
+
+      <motion.p
+        className="arrival-time__mobile-comparison-copy text-center text-[16px] tracking-wide leading-[1.85] mt-1"
+        style={{ color: "rgba(255,255,255,0.72)" }}
+      >
+        {compCopyText}
+      </motion.p>
+    </div>
+  );
+}
+
 const ComparisonDome = ({
   title,
   insightLabel,
@@ -766,6 +1147,7 @@ const ComparisonDome = ({
   percentClassName,
   paths,
   profileKey,
+  compact = false,
 }: {
   title: string;
   insightLabel: string;
@@ -777,9 +1159,12 @@ const ComparisonDome = ({
   percentClassName: string;
   paths: CompPaths;
   profileKey: "fz" | "riize" | "vaundy";
+  compact?: boolean;
 }) => {
   const profile = ARRIVAL_TIME_PROFILE[profileKey];
   const cumulative = useSteppedProfileField(progress, profile, "cumulative");
+  const pct = useSteppedPercent(progress, data);
+  const pctStr = useTransform(pct, (v) => `${Math.round(v)}%`);
 
   const glowShadow = useTransform(cumulative, (v) => {
     const alpha = Math.round((0.10 + (v / 100) * 0.28) * 255).toString(16).padStart(2, "0");
@@ -788,6 +1173,51 @@ const ComparisonDome = ({
   });
 
   const cardOpacity = useTransform(cumulative, (v) => 0.72 + (v / 100) * 0.24);
+
+  if (compact) {
+    return (
+      <div
+        className={`${domeClassName} arrival-time__comparison-dome--compact w-full rounded-2xl border border-white/12 bg-black/35 px-3 py-2.5 flex flex-col gap-1.5`}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <p
+            className="text-[12px] font-bold tracking-[0.1em] font-mono uppercase leading-tight"
+            style={{ color }}
+          >
+            {title}
+          </p>
+          <div className="text-right shrink-0">
+            <p className="text-[10px] text-white/55 tracking-wide leading-none mb-0.5">累積来場率</p>
+            <motion.span
+              className={`${percentClassName} font-mono font-bold tabular-nums text-[22px] leading-none`}
+              style={{ color, textShadow: `0 0 8px ${color}60` }}
+            >
+              {pctStr}
+            </motion.span>
+          </div>
+        </div>
+
+        <motion.div
+          className="relative w-full h-[44px] rounded-xl overflow-hidden bg-[#04040b] border border-white/[0.08]"
+          style={{ boxShadow: glowShadow, opacity: cardOpacity }}
+        >
+          <MiniFlowLane
+            progress={progress}
+            data={data}
+            color={color}
+            className={swarmClassName}
+          />
+        </motion.div>
+
+        <p
+          className="text-[13px] font-semibold tracking-wide font-mono text-center leading-snug"
+          style={{ color: "rgba(255,255,255,0.75)" }}
+        >
+          {insightLabel}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className={`${domeClassName} flex-1 flex flex-col items-center gap-2 min-w-0`}>
@@ -854,35 +1284,25 @@ export function ArrivalTime() {
   const fzTimeP = useTransform(scrollYProgress, [0.1, 0.25], [0, 1]);
   const riizeTimeP = useTransform(scrollYProgress, [0.25, 0.40], [0, 1]);
   const vaundyTimeP = useTransform(scrollYProgress, [0.40, 0.55], [0, 1]);
-  const compareTimeP = useTransform(scrollYProgress, (p) => {
-    const start = 0.55;
-    const timeEnd = 0.82;
-    if (p <= start) return 0;
-    if (p >= timeEnd) return 1;
-    return (p - start) / (timeEnd - start);
+  const compareTimeP = useTransform(scrollYProgress, (scrollP) => {
+    if (scrollP <= COMPARE_TIME_SCROLL_START) return 0;
+    if (scrollP >= COMPARE_TIME_SCROLL_END) return 1;
+    return (scrollP - COMPARE_TIME_SCROLL_START) / (COMPARE_TIME_SCROLL_END - COMPARE_TIME_SCROLL_START);
   });
 
   const maxTimeP = useTransform(scrollYProgress, () => 1);
 
   const compTimeUpper = useTransform(compareTimeP, (p) => {
-    const step = Math.min(Math.floor(p * 8), 8);
+    const step = getComparisonStep(p);
     return step < 8 ? "開演まで" : "";
   });
 
   const compTimeLower = useTransform(compareTimeP, (p) => {
-    const step = Math.min(Math.floor(p * 8), 8);
-    return ["8時間", "7時間", "6時間", "5時間", "4時間", "3時間", "2時間", "1時間", "開演"][step];
+    return COMPARISON_TIME_LABELS[getComparisonStep(p)];
   });
 
   const compCopyText = useTransform(compareTimeP, (p) => {
-    const step = Math.min(Math.floor(p * 8), 8);
-
-    if (step >= 8) return "3つのドームは、満員の熱量に包まれる。";
-    if (step >= 7) return "Vaundyは開演直前に最も集中する。RIIZEはその中間に位置する。";
-    if (step >= 6) return "FRUITS ZIPPERはすでに7割が到着。Vaundyはここから急増する。";
-    if (step >= 5) return "FRUITS ZIPPERは、すでに半数近くが集まっている。";
-
-    return "同じ東京ドームでも、集まり方は違う。";
+    return getComparisonCopyText(getComparisonStep(p));
   });
 
   const indicatorTop = useTransform(scrollYProgress, (p) => {
@@ -891,6 +1311,10 @@ export function ArrivalTime() {
     if (p >= 0.40 && p < 0.55) return `${((p - 0.40) / 0.15) * 100}%`;
     return "0%";
   });
+
+  const fzMobileTimelineOp = useTransform([timelineUiOp, fzSceneOp], ([t, s]) => (t as number) * (s as number));
+  const riizeMobileTimelineOp = useTransform([timelineUiOp, riizeSceneOp], ([t, s]) => (t as number) * (s as number));
+  const vaundyMobileTimelineOp = useTransform([timelineUiOp, vaundySceneOp], ([t, s]) => (t as number) * (s as number));
 
   return (
     <section
@@ -980,7 +1404,7 @@ export function ArrivalTime() {
               </motion.g>
             </BaseMap>
 
-            <div className="absolute top-[50%] left-1/2 -translate-x-1/2 mt-[60px] md:mt-[80px] pointer-events-none">
+            <div className="hidden md:block absolute top-[50%] left-1/2 -translate-x-1/2 mt-[80px] pointer-events-none">
               <motion.div className="absolute top-0 left-1/2 -translate-x-1/2 w-[280px] md:w-[360px]" style={{ opacity: fzSceneOp }}>
                 <CapacityIndicator progress={fzTimeP} data={cumulativeData.fruitsZipper} labels={TIMELINE_LABELS.map(l => l.label)} color="#00D1FF" />
               </motion.div>
@@ -996,8 +1420,46 @@ export function ArrivalTime() {
           </div>
         </motion.div>
 
+        <div className="md:hidden absolute bottom-14 left-1/2 -translate-x-1/2 z-40 w-[calc(100vw-48px)] max-w-[360px] pointer-events-none">
+          <div className="relative min-h-[80px] w-full">
+            <motion.div className="absolute inset-x-0 top-0" style={{ opacity: fzSceneOp }}>
+              <CapacityIndicator
+                mobile
+                progress={fzTimeP}
+                data={cumulativeData.fruitsZipper}
+                labels={TIMELINE_LABELS.map((l) => l.label)}
+                color="#00D1FF"
+              />
+            </motion.div>
+
+            <motion.div className="absolute inset-x-0 top-0" style={{ opacity: riizeSceneOp }}>
+              <CapacityIndicator
+                mobile
+                progress={riizeTimeP}
+                data={cumulativeData.riize}
+                labels={TIMELINE_LABELS.map((l) => l.label)}
+                color="#FF4EDB"
+              />
+            </motion.div>
+
+            <motion.div className="absolute inset-x-0 top-0" style={{ opacity: vaundySceneOp }}>
+              <CapacityIndicator
+                mobile
+                progress={vaundyTimeP}
+                data={cumulativeData.vaundy}
+                labels={TIMELINE_LABELS.map((l) => l.label)}
+                color="#A6FF4D"
+              />
+            </motion.div>
+          </div>
+        </div>
+
+        <MobileTimeScale progress={fzTimeP} color="#00D1FF" opacity={fzMobileTimelineOp} />
+        <MobileTimeScale progress={riizeTimeP} color="#FF4EDB" opacity={riizeMobileTimelineOp} />
+        <MobileTimeScale progress={vaundyTimeP} color="#A6FF4D" opacity={vaundyMobileTimelineOp} />
+
         <motion.div
-          className="arrival-time__timeline absolute left-8 top-1/2 -translate-y-1/2 flex flex-col h-[60vh] justify-between border-l border-[#333] pl-6 z-40"
+          className="arrival-time__timeline hidden md:flex absolute left-8 top-1/2 -translate-y-1/2 flex-col h-[60vh] justify-between border-l border-[#333] pl-6 z-40"
           style={{ opacity: timelineUiOp }}
         >
           <motion.div
@@ -1015,43 +1477,49 @@ export function ArrivalTime() {
 
         <motion.div className="absolute z-10 flex flex-col items-center text-center px-4" style={{ opacity: introOp }}>
           <h2 className="arrival-time__section-title text-4xl md:text-5xl text-white font-bold tracking-[0.1em] mb-6 drop-shadow-lg">
-            ライブは、開演前から始まっている。
+            人はここを目指して集まる。
           </h2>
 
           <p className="arrival-time__section-copy text-[#a0a0a0] text-lg md:text-xl tracking-[0.1em] leading-relaxed">
-            グッズを買う人。友人と待ち合わせる人。<br />
-            早くから会場の熱気を感じたい人。<br />
-            東京ドーム周辺には、開演の何時間も前からファンが集まり始める。
+            ライブは、開演前から始まっている。
+            <br />
+            グッズを買う人。友人と待ち合わせる人。
+            <br />
+            早くから会場の熱気を感じたい人。
+            <br />
+            東京ドーム周辺には、開演前からファンが集まり始める。
+            <br />
+            何時間前から人は集まってくるのか。
           </p>
         </motion.div>
 
-        <motion.div className="absolute top-1/4 right-[10%] z-10 text-right max-w-sm" style={{ opacity: fzSceneOp }}>
-          <h3 className="arrival-time__artist-name--fruits-zipper text-[#00D1FF] text-4xl md:text-5xl font-bold tracking-wider mb-4 drop-shadow-[0_0_10px_rgba(0,209,255,0.5)]">
+        <motion.div className="absolute top-16 md:top-1/4 left-0 right-0 md:left-auto md:right-[10%] z-10 text-center md:text-right max-w-[340px] md:max-w-sm px-4 mx-auto md:mx-0" style={{ opacity: fzSceneOp }}>
+          <h3 className="arrival-time__artist-name--fruits-zipper text-[#00D1FF] text-2xl md:text-5xl font-bold tracking-wider mb-3 md:mb-4 drop-shadow-[0_0_10px_rgba(0,209,255,0.5)]">
             FRUITS ZIPPER
           </h3>
-          <p className="arrival-time__scene-copy text-white/90 text-lg tracking-widest leading-relaxed">
+          <p className="arrival-time__scene-copy text-white/90 text-base md:text-lg tracking-wide md:tracking-widest leading-[1.85] md:leading-relaxed">
             開演の数時間前から来場が始まり、会場周辺で過ごすファンが目立つ。
             <br />
             ライブ前の時間も含めて、体験として楽しむ傾向が見られた。
           </p>
         </motion.div>
 
-        <motion.div className="absolute top-1/4 right-[10%] z-10 text-right max-w-sm" style={{ opacity: riizeSceneOp }}>
-          <h3 className="arrival-time__artist-name--riize text-[#FF4EDB] text-4xl md:text-5xl font-bold tracking-wider mb-4 drop-shadow-[0_0_10px_rgba(255,78,219,0.5)]">
+        <motion.div className="absolute top-16 md:top-1/4 left-0 right-0 md:left-auto md:right-[10%] z-10 text-center md:text-right max-w-[340px] md:max-w-sm px-4 mx-auto md:mx-0" style={{ opacity: riizeSceneOp }}>
+          <h3 className="arrival-time__artist-name--riize text-[#FF4EDB] text-2xl md:text-5xl font-bold tracking-wider mb-3 md:mb-4 drop-shadow-[0_0_10px_rgba(255,78,219,0.5)]">
             RIIZE
           </h3>
-          <p className="arrival-time__scene-copy text-white/90 text-lg tracking-widest leading-relaxed">
+          <p className="arrival-time__scene-copy text-white/90 text-base md:text-lg tracking-wide md:tracking-widest leading-[1.85] md:leading-relaxed">
             遠方からの来場者も含め、開演前から会場周辺に集まる動きが見られた。
             <br />
             ファンダムの広域性と早めの来場傾向が重なっている。
           </p>
         </motion.div>
 
-        <motion.div className="absolute top-1/4 right-[10%] z-10 text-right max-w-sm" style={{ opacity: vaundySceneOp }}>
-          <h3 className="arrival-time__artist-name--vaundy text-[#A6FF4D] text-4xl md:text-5xl font-bold tracking-wider mb-4 drop-shadow-[0_0_10px_rgba(166,255,77,0.5)]">
+        <motion.div className="absolute top-16 md:top-1/4 left-0 right-0 md:left-auto md:right-[10%] z-10 text-center md:text-right max-w-[340px] md:max-w-sm px-4 mx-auto md:mx-0" style={{ opacity: vaundySceneOp }}>
+          <h3 className="arrival-time__artist-name--vaundy text-[#A6FF4D] text-2xl md:text-5xl font-bold tracking-wider mb-3 md:mb-4 drop-shadow-[0_0_10px_rgba(166,255,77,0.5)]">
             Vaundy
           </h3>
-          <p className="arrival-time__scene-copy text-white/90 text-lg tracking-widest leading-relaxed">
+          <p className="arrival-time__scene-copy text-white/90 text-base md:text-lg tracking-wide md:tracking-widest leading-[1.85] md:leading-relaxed">
             首都圏在住者を中心に、開演時刻に向けて段階的に人流が増えていく。
             <br />
             都市部の生活圏から会場へ向かう動きが読み取れる。
@@ -1059,79 +1527,90 @@ export function ArrivalTime() {
         </motion.div>
 
         <motion.div
-          className="arrival-time__comparison-view absolute inset-0 z-20 flex flex-col justify-center items-center gap-3 md:gap-4 px-6 md:px-12 pointer-events-none"
+          className="arrival-time__comparison-view absolute inset-0 z-20 flex flex-col justify-center items-center pointer-events-none overflow-y-auto md:overflow-visible"
           style={{ opacity: compareOp }}
         >
-          <div className="arrival-time__comparison-time-label flex flex-col items-center leading-none mb-1">
-            <motion.span
-              className="text-white/45 font-mono tracking-[0.45em] uppercase select-none"
-              style={{ fontSize: "clamp(0.6rem, 1.2vw, 0.85rem)" }}
-            >
-              {compTimeUpper}
-            </motion.span>
+          <div className="md:hidden w-full flex justify-center px-5 pt-14 pb-6">
+            <MobileComparisonView
+              progress={compareTimeP}
+              compTimeUpper={compTimeUpper}
+              compTimeLower={compTimeLower}
+              compCopyText={compCopyText}
+            />
+          </div>
 
-            <motion.span
-              className="text-white font-bold tracking-tight leading-none"
+          <div className="hidden md:flex flex-col justify-center items-center gap-4 px-12 w-full">
+            <div className="arrival-time__comparison-time-label flex flex-col items-center leading-none mb-1">
+              <motion.span
+                className="text-white/45 font-mono tracking-[0.45em] uppercase select-none"
+                style={{ fontSize: "clamp(0.6rem, 1.2vw, 0.85rem)" }}
+              >
+                {compTimeUpper}
+              </motion.span>
+
+              <motion.span
+                className="text-white font-bold tracking-tight leading-none"
+                style={{
+                  fontSize: "clamp(2.8rem, 6.5vw, 5rem)",
+                  textShadow: "0 0 40px rgba(255,255,255,0.15)"
+                }}
+              >
+                {compTimeLower}
+              </motion.span>
+            </div>
+
+            <div className="flex w-full max-w-[900px] gap-6 justify-between items-start">
+              <ComparisonDome
+                title="FRUITS ZIPPER"
+                insightLabel="早め来場型"
+                color="#00D1FF"
+                progress={compareTimeP}
+                data={S06_DATA.fz}
+                swarmClassName="arrival-time__comparison-particles--fz"
+                domeClassName="arrival-time__comparison-dome--fruits-zipper"
+                percentClassName="arrival-time__comparison-percent--fruits-zipper"
+                paths={COMP_PATHS.fz}
+                profileKey="fz"
+              />
+
+              <ComparisonDome
+                title="RIIZE"
+                insightLabel="中間型"
+                color="#FF4EDB"
+                progress={compareTimeP}
+                data={S06_DATA.riize}
+                swarmClassName="arrival-time__comparison-particles--riize"
+                domeClassName="arrival-time__comparison-dome--riize"
+                percentClassName="arrival-time__comparison-percent--riize"
+                paths={COMP_PATHS.riize}
+                profileKey="riize"
+              />
+
+              <ComparisonDome
+                title="Vaundy"
+                insightLabel="直前集中型"
+                color="#A6FF4D"
+                progress={compareTimeP}
+                data={S06_DATA.vaundy}
+                swarmClassName="arrival-time__comparison-particles--vaundy"
+                domeClassName="arrival-time__comparison-dome--vaundy"
+                percentClassName="arrival-time__comparison-percent--vaundy"
+                paths={COMP_PATHS.vaundy}
+                profileKey="vaundy"
+              />
+            </div>
+
+            <motion.p
+              className="arrival-time__comparison-copy text-center tracking-[0.06em] max-w-2xl mt-3"
               style={{
-                fontSize: "clamp(2.8rem, 6.5vw, 5rem)",
-                textShadow: "0 0 40px rgba(255,255,255,0.15)"
+                fontSize: "clamp(17px, 1.75vw, 22px)",
+                color: "rgba(255,255,255,0.72)",
+                lineHeight: 1.85,
               }}
             >
-              {compTimeLower}
-            </motion.span>
+              {compCopyText}
+            </motion.p>
           </div>
-
-          <div className="flex w-full max-w-[900px] gap-4 md:gap-6 justify-between items-start">
-            <ComparisonDome
-              title="FRUITS ZIPPER"
-              insightLabel="早め来場型"
-              color="#00D1FF"
-              progress={compareTimeP}
-              data={S06_DATA.fz}
-              swarmClassName="arrival-time__comparison-particles--fz"
-              domeClassName="arrival-time__comparison-dome--fruits-zipper"
-              percentClassName="arrival-time__comparison-percent--fruits-zipper"
-              paths={COMP_PATHS.fz}
-              profileKey="fz"
-            />
-
-            <ComparisonDome
-              title="RIIZE"
-              insightLabel="中間型"
-              color="#FF4EDB"
-              progress={compareTimeP}
-              data={S06_DATA.riize}
-              swarmClassName="arrival-time__comparison-particles--riize"
-              domeClassName="arrival-time__comparison-dome--riize"
-              percentClassName="arrival-time__comparison-percent--riize"
-              paths={COMP_PATHS.riize}
-              profileKey="riize"
-            />
-
-            <ComparisonDome
-              title="Vaundy"
-              insightLabel="直前集中型"
-              color="#A6FF4D"
-              progress={compareTimeP}
-              data={S06_DATA.vaundy}
-              swarmClassName="arrival-time__comparison-particles--vaundy"
-              domeClassName="arrival-time__comparison-dome--vaundy"
-              percentClassName="arrival-time__comparison-percent--vaundy"
-              paths={COMP_PATHS.vaundy}
-              profileKey="vaundy"
-            />
-          </div>
-
-          <motion.p
-            className="arrival-time__comparison-copy text-center tracking-[0.06em] max-w-2xl mt-2 md:mt-3"
-            style={{
-              fontSize: "clamp(14px, 1.4vw, 16px)",
-              color: "rgba(255,255,255,0.72)",
-              lineHeight: 1.8,
-            }}
-          >
-            {compCopyText}
-          </motion.p>
         </motion.div>
 
         <motion.div

@@ -11,6 +11,7 @@ import {
   PREFECTURE_MODAL_DATA,
   type PrefectureModalArtistKey,
 } from "./PrefectureDetailModal";
+import { useLogoVisibility } from "./LogoVisibilityContext";
 
 const COLORS = {
   FZ: "#00D1FF",
@@ -33,6 +34,7 @@ const DATA = {
     prefectures: 30,
     genderF: 51,
     genderM: 49,
+    arrivalType: "早めの来場型",
     arrivalTrend: [1.8, 1.5, 6.1, 9.7, 4.8, 22.4, 23.8, 14.4, 15.5],
   },
   RZ: {
@@ -41,6 +43,7 @@ const DATA = {
     prefectures: 28,
     genderF: 81,
     genderM: 19,
+    arrivalType: "中間型",
     arrivalTrend: [1.8, 7.0, 0.9, 4.8, 3.5, 9.6, 12.7, 36.0, 23.7],
   },
   VD: {
@@ -49,6 +52,7 @@ const DATA = {
     prefectures: 34,
     genderF: 73,
     genderM: 27,
+    arrivalType: "直前集中型",
     arrivalTrend: [2.5, 2.3, 1.5, 1.0, 1.7, 2.7, 23.4, 53.4, 11.5],
   },
 };
@@ -265,6 +269,129 @@ function GenderBar({ f, progress, color }: { f: number; m: number; progress: any
   );
 }
 
+function StaticGenderBar({ f, color }: { f: number; color: string }) {
+  return (
+    <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden flex">
+      <div className="h-full rounded-l-full" style={{ width: `${f}%`, backgroundColor: color }} />
+      <div className="h-full bg-white flex-1 rounded-r-full" />
+    </div>
+  );
+}
+
+function MobileArrivalStackedBar({
+  values,
+  color,
+}: {
+  values: number[];
+  color: string;
+}) {
+  const total = values.reduce((sum, value) => sum + value, 0);
+  const peak = Math.max(...values);
+
+  return (
+    <div className="comparison__mobile-arrival-bar w-full">
+      <div className="flex w-full h-[10px] rounded-full overflow-hidden bg-white/10 gap-px">
+        {values.map((value, index) => {
+          const widthPct = total > 0 ? (value / total) * 100 : 0;
+          const isPeak = value === peak && value > 0;
+          const tone = peak > 0 ? 0.32 + (value / peak) * 0.58 : 0.32;
+
+          return (
+            <div
+              key={index}
+              className="h-full shrink-0"
+              style={{
+                width: `${widthPct}%`,
+                backgroundColor: withAlpha(color, isPeak ? 1 : tone),
+                boxShadow: isPeak ? `0 0 8px ${withAlpha(color, 0.45)}` : undefined,
+              }}
+              aria-hidden="true"
+            />
+          );
+        })}
+      </div>
+      <div className="mt-1.5 flex justify-between text-[10px] font-mono text-white/45 tracking-wide">
+        <span>8h前</span>
+        <span>開演</span>
+      </div>
+    </div>
+  );
+}
+
+function MobileComparisonCard({
+  id,
+  data,
+  color,
+  onOpenPrefecture,
+}: {
+  id: string;
+  data: typeof DATA.FZ;
+  color: string;
+  onOpenPrefecture: () => void;
+}) {
+  return (
+    <div
+      className={`comparison__mobile-card--${id} w-[calc(100vw-40px)] max-w-[390px] min-h-[220px] max-h-[270px] rounded-[22px] px-5 py-4 bg-gradient-to-br from-white/[0.08] to-white/[0.01] backdrop-blur-2xl border border-white/20 border-b-white/5 border-r-white/5 shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.2)] relative overflow-hidden`}
+    >
+      <div
+        className="absolute -top-16 -right-16 w-32 h-32 rounded-full blur-[50px] opacity-30 pointer-events-none"
+        style={{ backgroundColor: color }}
+      />
+
+      <div className="relative flex items-start justify-between gap-3 mb-3">
+        <h3
+          className={`comparison__mobile-artist-name--${id} text-[17px] font-bold tracking-[0.08em] leading-tight`}
+          style={{ color }}
+        >
+          {data.artist}
+        </h3>
+        <button
+          type="button"
+          onClick={onOpenPrefecture}
+          aria-label={`${data.artist}の来訪都道府県地図を見る`}
+          className={`comparison__mobile-map-link--${id} shrink-0 text-[11px] font-semibold rounded-full px-2.5 py-1 border transition-all duration-200 active:brightness-110`}
+          style={{
+            color,
+            backgroundColor: withAlpha(color, 0.12),
+            borderColor: withAlpha(color, 0.3),
+            boxShadow: `0 0 10px ${withAlpha(color, 0.25)}`,
+          }}
+        >
+          地図で見る →
+        </button>
+      </div>
+
+      <div className={`comparison__mobile-prefecture--${id} mb-3`}>
+        <p className="text-[11px] text-[#888] font-mono mb-1 tracking-wide">来訪都道府県</p>
+        <p className="text-[22px] font-light text-white/90 font-mono tracking-wide leading-none">
+          {data.prefectures} / 47都道府県
+        </p>
+      </div>
+
+      <div className={`comparison__mobile-gender-ratio--${id}`}>
+        <div className="text-[11px] font-mono mb-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1">
+          <span className="text-[#888]">男女比</span>
+          <span className="text-white/90">
+            女性 {data.genderF}%
+            <span className="text-white/35 mx-1.5">/</span>
+            男性 {data.genderM}%
+          </span>
+        </div>
+        <StaticGenderBar f={data.genderF} color={color} />
+      </div>
+
+      <div className={`comparison__mobile-arrival--${id} mt-4`}>
+        <div className="text-[11px] font-mono mb-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+          <span className="text-[#888]">来場時間</span>
+          <span className="font-semibold tracking-wide" style={{ color }}>
+            {data.arrivalType}
+          </span>
+        </div>
+        <MobileArrivalStackedBar values={data.arrivalTrend} color={color} />
+      </div>
+    </div>
+  );
+}
 
 function ComparisonCard({
   id,
@@ -395,30 +522,36 @@ function ComparisonCard({
 export function Comparison() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [modalArtist, setModalArtist] = useState<PrefectureModalArtistKey | null>(null);
+  const { setModalOpen } = useLogoVisibility();
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start start", "end end"]
   });
+
+  useEffect(() => {
+    setModalOpen(modalArtist !== null);
+    return () => setModalOpen(false);
+  }, [modalArtist, setModalOpen]);
 
   const titleOpacity = useTransform(scrollYProgress, [0, 0.06, 0.9, 1], [0, 1, 1, 0]);
   const titleY = useTransform(scrollYProgress, [0, 0.06], [30, 0]);
 
   return (
     <section ref={containerRef} className="section-comparison relative h-[230vh] bg-[#050505]" style={{ position: "relative" }}>
-      <div className="comparison__background sticky top-0 w-full h-[100vh] overflow-hidden flex flex-col items-center justify-center px-4 bg-[#050505]">
+      <div className="comparison__background sticky top-0 w-full h-[100vh] overflow-y-auto md:overflow-hidden flex flex-col items-center px-4 pt-[120px] pb-8 md:pt-0 md:pb-0 md:justify-center bg-[#050505]">
         <div className="comparison__map-overlay absolute inset-0 bg-gradient-to-b from-[#050505] via-[#030303] to-[#000000] pointer-events-none" />
 
-        <motion.div className="text-center mb-12 z-20" style={{ opacity: titleOpacity, y: titleY }}>
-          <h2 className="comparison__section-title text-4xl md:text-5xl text-white font-bold tracking-[0.1em] mb-6">
-            3つのライブ、3つの人流。
+        <motion.div className="text-center mb-6 md:mb-12 z-20 shrink-0" style={{ opacity: titleOpacity, y: titleY }}>
+          <h2 className="comparison__section-title text-2xl md:text-5xl text-white font-bold tracking-[0.1em] mb-3 md:mb-6">
+            3つのライブ、3つの人流
           </h2>
-          <p className="comparison__section-copy text-[#a0a0a0] text-lg md:text-xl tracking-[0.1em] leading-relaxed">
-            同じ東京ドームに集まっても、<br className="md:hidden" />
-            来る場所、来る時間、集まる人は違っていた。
+          <p className="comparison__section-copy text-[#a0a0a0] text-sm md:text-xl tracking-[0.08em] md:tracking-[0.1em] leading-relaxed max-w-[340px] md:max-w-none mx-auto">
+            同じ東京ドームのライブでも、<br className="md:hidden" />
+            どこから来るか、来る時間、来る人は違っていた。
           </p>
         </motion.div>
 
-        <div className="comparison__card-container w-full max-w-[1200px] flex flex-col md:flex-row gap-6 md:gap-8 justify-center items-center z-10 px-4 perspective-[1000px]">
+        <div className="hidden md:flex comparison__card-container w-full max-w-[1200px] flex-row gap-8 justify-center items-center z-10 px-4 perspective-[1000px]">
           <ComparisonCard
             id="fruits-zipper"
             data={DATA.FZ}
@@ -441,6 +574,27 @@ export function Comparison() {
             color={COLORS.VD}
             progress={scrollYProgress}
             index={2}
+            onOpenPrefecture={() => setModalArtist("VD")}
+          />
+        </div>
+
+        <div className="md:hidden comparison__mobile-card-container w-full flex flex-col items-center gap-5 z-10">
+          <MobileComparisonCard
+            id="fruits-zipper"
+            data={DATA.FZ}
+            color={COLORS.FZ}
+            onOpenPrefecture={() => setModalArtist("FZ")}
+          />
+          <MobileComparisonCard
+            id="riize"
+            data={DATA.RZ}
+            color={COLORS.RZ}
+            onOpenPrefecture={() => setModalArtist("RZ")}
+          />
+          <MobileComparisonCard
+            id="vaundy"
+            data={DATA.VD}
+            color={COLORS.VD}
             onOpenPrefecture={() => setModalArtist("VD")}
           />
         </div>

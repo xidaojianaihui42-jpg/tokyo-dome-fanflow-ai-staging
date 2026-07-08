@@ -504,21 +504,27 @@ export function Hero() {
           style={{ opacity: heroEndSoftFadeOpacity }}
         />
 
-        <div className="hero__next-section-copy absolute inset-0 z-[29] flex flex-col items-center justify-center pointer-events-none px-6">
+        <div className="hero__next-section-copy absolute inset-0 z-[29] flex flex-col items-center justify-center pointer-events-none px-5 md:px-6 pt-14 md:pt-0 w-full max-w-full overflow-hidden box-border">
           <motion.div
+            className="w-full max-w-[320px] md:max-w-none mx-auto"
             style={{
               opacity: nextSectionHeadingOpacity,
               y: nextSectionHeadingY,
               filter: nextSectionHeadingBlur,
             }}
           >
-            <p className="text-white text-[28px] md:text-[44px] lg:text-[56px] font-bold tracking-[0.14em] leading-relaxed text-center drop-shadow-[0_0_32px_rgba(255,255,255,0.32)]">
-              人流データから見えたもの
+            <p className="text-white text-[32px] md:text-[44px] lg:text-[56px] font-bold tracking-[0.06em] md:tracking-[0.14em] leading-[1.3] md:leading-relaxed text-center drop-shadow-[0_0_32px_rgba(255,255,255,0.32)] break-keep">
+              <span className="md:hidden">
+                人流データから
+                <br />
+                見えてきたもの
+              </span>
+              <span className="hidden md:inline">人流データから見えてきたもの</span>
             </p>
           </motion.div>
 
           <motion.div
-            className="hero__next-section-body mt-6 md:mt-8 max-w-[760px] md:max-w-[860px] lg:max-w-[900px] w-full"
+            className="hero__next-section-body mt-5 md:mt-8 w-full max-w-[320px] md:max-w-[860px] lg:max-w-[900px]"
             style={{
               opacity: nextSectionBodyOpacity,
               y: nextSectionBodyY,
@@ -526,19 +532,29 @@ export function Hero() {
             }}
           >
             <p
-              className="text-[16px] md:text-[18px] lg:text-[22px] text-center tracking-[0.06em] font-medium"
-              style={{ color: "rgba(255,255,255,0.84)", lineHeight: 1.9 }}
+              className="text-[18px] md:text-[18px] lg:text-[22px] text-center tracking-[0.02em] md:tracking-[0.06em] font-medium break-keep leading-[1.75] md:leading-[1.9]"
+              style={{ color: "rgba(255,255,255,0.84)" }}
             >
-              東京ドームという同じ会場でも、来場者の動きは一様ではない。
-              <br />
-              居住地、来場時間、年代・性別のデータを追うと、
-              <br />
-              アーティストごとに異なるファンダムの輪郭が見えてくる。
+              <span className="md:hidden block">
+                <span className="block">東京ドームという同じ会場でも、</span>
+                <span className="block">来場者の動きは一様ではない。</span>
+                <span className="block mt-3">居住地、来場時間、年代・性別の</span>
+                <span className="block">データを追うと、</span>
+                <span className="block mt-3">アーティストごとに異なる</span>
+                <span className="block">ファンダムの輪郭が見えてくる。</span>
+              </span>
+              <span className="hidden md:inline">
+                東京ドームという同じ会場でも、来場者の動きは一様ではない。
+                <br />
+                居住地、来場時間、年代・性別のデータを追うと、
+                <br />
+                アーティストごとに異なるファンダムの輪郭が見えてくる。
+              </span>
             </p>
           </motion.div>
 
           <motion.div
-            className="hero__data-source-note mt-10 md:mt-12 max-w-[720px] w-full px-4 py-3 md:px-5 md:py-4 rounded-lg bg-black/28 border border-white/[0.07]"
+            className="hero__data-source-note mt-8 md:mt-12 w-full max-w-[min(100%,calc(100vw-32px))] md:max-w-[720px] mx-auto box-border px-4 py-4 md:px-6 md:py-4 rounded-lg bg-black/28 border border-white/[0.07] min-w-0"
             style={{
               opacity: nextSectionNoteOpacity,
               y: nextSectionNoteY,
@@ -546,10 +562,9 @@ export function Hero() {
             }}
           >
             <p
-              className="text-[11px] md:text-[12px] text-center tracking-[0.02em]"
+              className="text-[12px] text-left md:text-center tracking-[0.01em] md:tracking-[0.02em] leading-[1.75] md:leading-[1.85] break-words [overflow-wrap:anywhere]"
               style={{
                 color: "rgba(255,255,255,0.58)",
-                lineHeight: 1.85,
               }}
             >
               今回のインフォグラフィックは、Location AI（東京・渋谷）が独自開発した『Location AI Platform（LAP）』を活用して制作しました。LAPは、提携先のスマートフォンアプリを通じて利用者の許諾を得て取得した累計3兆レコードを超える位置情報ビッグデータをAI技術により解析・統計データ化し、多様な人流分析を可能にしています。
@@ -574,7 +589,7 @@ export function Hero() {
             style={{ opacity: subtitleOpacity, y: subtitleY }}
           >
             東京ドームに集うファンの、<br className="md:hidden" />
-            属性と行動傾向。
+            行動と属性。
           </motion.p>
         </motion.div>
 

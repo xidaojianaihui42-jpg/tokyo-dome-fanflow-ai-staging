@@ -63,6 +63,7 @@ function getDomePos() {
 }
 
 const PROJECT_MEMBERS = [
+  "Kenji Hada",
   "Masayuki Otani",
   "Tatsuhisa Shirakabe",
   "Yutaka Toba",
@@ -279,9 +280,6 @@ export function Ending() {
             <motion.div style={{ opacity: copy03Op }}>
               <p className="ending__copy-03 text-white/80 text-xl md:text-2xl tracking-[0.2em] font-light">東京ドームへ。</p>
             </motion.div>
-            <motion.div style={{ opacity: copy04Op }}>
-              <p className="ending__copy-04 text-white/80 text-xl md:text-2xl tracking-[0.2em] font-light">たった一つの場所へ。</p>
-            </motion.div>
           </div>
 
           <div className="absolute flex flex-col gap-6">
@@ -290,9 +288,6 @@ export function Ending() {
             </motion.div>
             <motion.div style={{ opacity: copy06Op }}>
               <p className="ending__copy-06 text-white/80 text-xl md:text-2xl tracking-[0.2em] font-light">音楽を聴くために。</p>
-            </motion.div>
-            <motion.div style={{ opacity: copy07Op }}>
-              <p className="ending__copy-07 text-white/80 text-xl md:text-2xl tracking-[0.2em] font-light">同じ瞬間を共有するために。</p>
             </motion.div>
           </div>
 
