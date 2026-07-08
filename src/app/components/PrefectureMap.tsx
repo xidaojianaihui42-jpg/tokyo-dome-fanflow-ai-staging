@@ -197,40 +197,42 @@ function InsightCardContent({ id, data }: { id: string; data: typeof RANKING_DAT
 
   return (
     <motion.div
-      className={`prefecture-map__insight-card--${id.toLowerCase()} p-5 md:p-6 flex flex-col h-full`}
+      className={`prefecture-map__insight-card--${id.toLowerCase()} p-5 md:p-7 flex flex-col h-full`}
       initial={{ opacity: 0, y: 40 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -40 }}
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
     >
       <div className="prefecture-map__card-header mb-3 md:mb-4">
-        <div className="prefecture-map__card-label text-[9px] text-white/70 tracking-widest mb-1 font-mono drop-shadow-md">
+        <div className="prefecture-map__card-label text-[9px] md:text-[13px] text-white/65 tracking-[0.14em] md:tracking-[0.16em] mb-1 font-mono drop-shadow-md">
           LIVE FAN RESIDENCE
         </div>
         <div
-          className="prefecture-map__card-artist-name text-xl md:text-2xl font-bold tracking-wider mb-1"
+          className="prefecture-map__card-artist-name text-xl md:text-[1.75rem] font-extrabold tracking-wider mb-1 md:mb-1.5"
           style={{ color: data.color, textShadow: `0 0 15px ${data.color}80` }}
         >
           {data.artist}
         </div>
-        <div className="text-[10px] md:text-xs text-white/90 drop-shadow-sm">来場者の居住地 TOP10</div>
+        <div className="text-[10px] md:text-[15px] font-semibold text-white/85 drop-shadow-sm">
+          来場者の居住地 TOP10
+        </div>
       </div>
 
-      <div className="prefecture-map__ranking-list flex flex-col gap-1.5 md:gap-2 mb-3 md:mb-4">
+      <div className="prefecture-map__ranking-list flex flex-col gap-1.5 md:gap-2.5 mb-3 md:mb-4">
         {data.items.map((item, i) => {
           const isHighlighted = data.highlightPrefectures.includes(item.pref);
 
           return (
             <div
               key={item.pref}
-              className={`prefecture-map__ranking-item--${(i + 1).toString().padStart(2, "0")} relative flex items-center justify-between text-[10px] md:text-xs`}
+              className={`prefecture-map__ranking-item--${(i + 1).toString().padStart(2, "0")} relative flex items-center justify-between text-[10px] md:text-[15px] leading-[1.5] md:leading-[1.55]`}
             >
-              <div className="flex items-center gap-2 w-[70px] md:w-[80px]">
-                <span className="prefecture-map__ranking-rank font-mono text-white/60 text-[9px] md:text-[10px] w-4 text-right">
+              <div className="flex items-center gap-2 w-[70px] md:w-[92px] shrink-0">
+                <span className="prefecture-map__ranking-rank font-mono text-white/60 text-[9px] md:text-[13px] w-4 md:w-5 text-right font-semibold">
                   {i + 1}
                 </span>
                 <span
-                  className={`prefecture-map__ranking-prefecture ${isHighlighted ? "prefecture-map__highlight-prefecture font-bold" : "text-white/90"}`}
+                  className={`prefecture-map__ranking-prefecture text-[10px] md:text-[15px] font-semibold ${isHighlighted ? "prefecture-map__highlight-prefecture font-bold" : "text-white/90"}`}
                   style={{
                     color: isHighlighted ? data.color : undefined,
                     textShadow: isHighlighted ? `0 0 8px ${data.color}60` : undefined
@@ -240,7 +242,7 @@ function InsightCardContent({ id, data }: { id: string; data: typeof RANKING_DAT
                 </span>
               </div>
 
-              <div className="flex-1 mx-2 h-1 bg-black/20 rounded-full overflow-hidden shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]">
+              <div className="flex-1 mx-1.5 md:mx-2 h-1 md:h-1.5 bg-black/20 rounded-full overflow-hidden shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)] min-w-0">
                 <motion.div
                   className="prefecture-map__ranking-bar h-full rounded-full"
                   style={{ backgroundColor: data.color, boxShadow: `0 0 8px ${data.color}` }}
@@ -250,7 +252,7 @@ function InsightCardContent({ id, data }: { id: string; data: typeof RANKING_DAT
                 />
               </div>
 
-              <div className="prefecture-map__ranking-value font-mono text-[9px] md:text-[10px] w-8 md:w-10 text-right text-white font-medium drop-shadow-md">
+              <div className="prefecture-map__ranking-value font-mono text-[9px] md:text-[14px] w-8 md:w-11 text-right text-white font-semibold drop-shadow-md shrink-0">
                 <AnimatedValue value={item.val} isVisible={true} delay={i * 0.05 + 0.2} />
               </div>
             </div>
@@ -259,7 +261,7 @@ function InsightCardContent({ id, data }: { id: string; data: typeof RANKING_DAT
       </div>
 
       {"liveDateNote" in data && data.liveDateNote ? (
-        <p className="prefecture-map__live-date-note text-[9px] md:text-[10px] text-white/45 tracking-wide leading-relaxed mt-1">
+        <p className="prefecture-map__live-date-note text-[9px] md:text-[12px] text-white/55 tracking-wide leading-[1.65] mt-1 max-w-[240px]">
           {data.liveDateNote}
         </p>
       ) : null}
@@ -438,43 +440,43 @@ export function PrefectureMap() {
   }, []);
 
   useMotionValueEvent(scrollYProgress, "change", (v) => {
-    if (v >= 0.15 && v < 0.33) setActiveArtist("FZ");
-    else if (v >= 0.33 && v < 0.50) setActiveArtist("RZ");
-    else if (v >= 0.50 && v < 0.68) setActiveArtist("VD");
+    if (v >= 0.20 && v < 0.46) setActiveArtist("FZ");
+    else if (v >= 0.42 && v < 0.68) setActiveArtist("RZ");
+    else if (v >= 0.64 && v < 0.90) setActiveArtist("VD");
     else setActiveArtist(null);
 
-    setIsCompareVisible(v >= 0.66 && v < 0.85);
+    setIsCompareVisible(v >= 0.86 && v < 0.97);
   });
 
-  const introOpacity = useTransform(scrollYProgress, [0.02, 0.08, 0.12, 0.18], [0, 1, 1, 0]);
-  const introY = useTransform(scrollYProgress, [0.02, 0.08], [20, 0]);
+  const introOpacity = useTransform(scrollYProgress, [0.02, 0.10, 0.16, 0.22], [0, 1, 1, 0]);
+  const introY = useTransform(scrollYProgress, [0.02, 0.10], [20, 0]);
 
-  const fzOpacity = useTransform(scrollYProgress, [0.15, 0.20, 0.30, 0.35], [0, 1, 1, 0]);
-  const fzY = useTransform(scrollYProgress, [0.15, 0.20], [20, 0]);
+  const fzOpacity = useTransform(scrollYProgress, [0.20, 0.25, 0.40, 0.46], [0, 1, 1, 0]);
+  const fzY = useTransform(scrollYProgress, [0.20, 0.25], [20, 0]);
 
-  const riizeOpacity = useTransform(scrollYProgress, [0.32, 0.37, 0.47, 0.52], [0, 1, 1, 0]);
-  const riizeY = useTransform(scrollYProgress, [0.32, 0.37], [20, 0]);
+  const riizeOpacity = useTransform(scrollYProgress, [0.42, 0.47, 0.62, 0.68], [0, 1, 1, 0]);
+  const riizeY = useTransform(scrollYProgress, [0.42, 0.47], [20, 0]);
 
-  const vaundyOpacity = useTransform(scrollYProgress, [0.49, 0.54, 0.64, 0.69], [0, 1, 1, 0]);
-  const vaundyY = useTransform(scrollYProgress, [0.49, 0.54], [20, 0]);
+  const vaundyOpacity = useTransform(scrollYProgress, [0.64, 0.69, 0.84, 0.90], [0, 1, 1, 0]);
+  const vaundyY = useTransform(scrollYProgress, [0.64, 0.69], [20, 0]);
 
-  const compareOpacity = useTransform(scrollYProgress, [0.66, 0.70, 0.82, 0.85], [0, 1, 1, 0]);
+  const compareOpacity = useTransform(scrollYProgress, [0.86, 0.90, 0.95, 0.98], [0, 1, 1, 0]);
 
-  const mapScale = useTransform(scrollYProgress, [0.82, 1], [1, 15]);
-  const mapOriginX = useTransform(scrollYProgress, [0.82, 1], ["50%", "61.5%"]);
-  const mapOriginY = useTransform(scrollYProgress, [0.82, 1], ["50%", "58.5%"]);
+  const mapScale = useTransform(scrollYProgress, [0.94, 1], [1, 15]);
+  const mapOriginX = useTransform(scrollYProgress, [0.94, 1], ["50%", "61.5%"]);
+  const mapOriginY = useTransform(scrollYProgress, [0.94, 1], ["50%", "58.5%"]);
 
-  const mapOpacity = useTransform(scrollYProgress, [0.86, 0.93], [1, 0]);
-  const domeBgOpacity = useTransform(scrollYProgress, [0.88, 0.95], [0, 0.6]);
-  const domeBgScale = useTransform(scrollYProgress, [0.88, 1], [1.1, 1]);
+  const mapOpacity = useTransform(scrollYProgress, [0.96, 0.99], [1, 0]);
+  const domeBgOpacity = useTransform(scrollYProgress, [0.96, 0.99], [0, 0.6]);
+  const domeBgScale = useTransform(scrollYProgress, [0.96, 1], [1.1, 1]);
 
-  const zoomTextOpacity = useTransform(scrollYProgress, [0.88, 0.95], [0, 1]);
+  const zoomTextOpacity = useTransform(scrollYProgress, [0.96, 0.99], [0, 1]);
 
   const isCardVisible = activeArtist !== null;
   const spCompareLayout = isCompareVisible && isMobileLayout;
 
   return (
-    <section ref={containerRef} className="section-prefecture-map h-[500vh] relative bg-[#050505]" style={{ position: "relative" }}>
+    <section ref={containerRef} className="section-prefecture-map h-[580vh] md:h-[460vh] relative bg-[#050505]" style={{ position: "relative" }}>
       <div
         className={`sticky top-0 w-full h-[100vh] overflow-hidden flex flex-col items-center md:block md:pt-0 md:pb-0 ${
           spCompareLayout ? "justify-center py-3" : "justify-start pt-10 pb-2"
@@ -620,7 +622,7 @@ export function PrefectureMap() {
         </motion.div>
 
         <motion.div
-          className={`prefecture-map__insight-card relative z-30 mx-auto mt-6 mb-2 w-[calc(100vw-32px)] max-w-[380px] shrink-0 bg-gradient-to-br from-white/[0.15] to-white/[0.02] backdrop-blur-[32px] border border-t-white/[0.35] border-l-white/[0.35] border-b-white/[0.1] border-r-white/[0.1] rounded-[22px] shadow-[0_24px_60px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.4),inset_0_0_20px_rgba(255,255,255,0.05)] overflow-hidden md:absolute md:right-[80px] md:top-1/2 md:-translate-y-1/2 md:mx-0 md:mt-0 md:mb-0 md:w-[240px] lg:w-[280px] md:rounded-2xl ${isCardVisible ? "" : "max-md:hidden"}`}
+          className={`prefecture-map__insight-card relative z-30 mx-auto mt-6 mb-2 w-[calc(100vw-32px)] max-w-[380px] shrink-0 bg-gradient-to-br from-white/[0.15] to-white/[0.02] backdrop-blur-[32px] border border-t-white/[0.35] border-l-white/[0.35] border-b-white/[0.1] border-r-white/[0.1] rounded-[22px] shadow-[0_24px_60px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.4),inset_0_0_20px_rgba(255,255,255,0.05)] overflow-hidden md:absolute md:right-[72px] md:top-1/2 md:-translate-y-1/2 md:mx-0 md:mt-0 md:mb-0 md:w-[268px] lg:w-[308px] md:rounded-2xl ${isCardVisible ? "" : "max-md:hidden"}`}
           initial={{ opacity: 0, x: isMobileLayout ? 0 : 80, y: isMobileLayout ? 40 : 0, filter: "blur(8px)" }}
           animate={{
             opacity: isCardVisible ? 1 : 0,
@@ -657,30 +659,36 @@ export function PrefectureMap() {
           </div>
         </motion.div>
 
-        <motion.div className="absolute top-14 md:top-1/4 left-0 right-0 md:left-[5%] md:right-auto z-10 max-w-md px-4 text-center md:text-left mx-auto md:mx-0" style={{ opacity: fzOpacity, y: fzY }}>
-          <h3 className="prefecture-map__artist-name--fruits-zipper text-[#00D1FF] text-2xl md:text-5xl font-bold tracking-wider mb-2 md:mb-4 drop-shadow-[0_0_10px_rgba(0,209,255,0.5)]">
+        <motion.div className="absolute top-14 md:top-1/4 left-0 right-0 md:left-[5%] md:right-auto z-10 max-w-md md:max-w-lg px-4 text-center md:text-left mx-auto md:mx-0" style={{ opacity: fzOpacity, y: fzY }}>
+          <h3 className="prefecture-map__artist-name--fruits-zipper text-[#00D1FF] text-2xl md:text-[3.25rem] font-extrabold md:font-bold tracking-wide md:tracking-wider mb-2 md:mb-4 drop-shadow-[0_0_10px_rgba(0,209,255,0.5)]">
             FRUITS ZIPPER
           </h3>
-          <p className="text-white/80 text-sm md:text-xl font-medium tracking-widest mb-1 md:mb-2">{RANKING_DATA.FZ.text}</p>
-          <p className="text-[#a0a0a0] text-xs md:text-sm tracking-widest leading-relaxed">TOP10 の 1都3県比率　{RANKING_DATA.FZ.kantoRatio}％</p>
+          <p className="text-white/80 text-sm md:text-2xl md:font-semibold md:leading-[1.6] tracking-wide md:tracking-widest mb-1 md:mb-2">{RANKING_DATA.FZ.text}</p>
+          <p className="text-white/70 text-xs md:text-lg font-semibold tracking-[0.04em] md:tracking-[0.06em] leading-relaxed">
+            TOP10 の 1都3県比率　<span className="text-white/85 font-bold">{RANKING_DATA.FZ.kantoRatio}％</span>
+          </p>
         </motion.div>
 
-        <motion.div className="absolute top-14 md:top-1/4 left-0 right-0 md:left-[5%] md:right-auto z-10 max-w-md px-4 text-center md:text-left mx-auto md:mx-0" style={{ opacity: riizeOpacity, y: riizeY }}>
-          <h3 className="prefecture-map__artist-name--riize text-[#FF4EDB] text-2xl md:text-5xl font-bold tracking-wider mb-2 md:mb-4 drop-shadow-[0_0_10px_rgba(255,78,219,0.5)]">
+        <motion.div className="absolute top-14 md:top-1/4 left-0 right-0 md:left-[5%] md:right-auto z-10 max-w-md md:max-w-lg px-4 text-center md:text-left mx-auto md:mx-0" style={{ opacity: riizeOpacity, y: riizeY }}>
+          <h3 className="prefecture-map__artist-name--riize text-[#FF4EDB] text-2xl md:text-[3.25rem] font-extrabold md:font-bold tracking-wide md:tracking-wider mb-2 md:mb-4 drop-shadow-[0_0_10px_rgba(255,78,219,0.5)]">
             RIIZE
           </h3>
-          <p className="text-white/80 text-sm md:text-xl font-medium tracking-widest mb-1 md:mb-2">{RANKING_DATA.RZ.text}</p>
-          <p className="text-[#a0a0a0] text-xs md:text-sm tracking-widest leading-relaxed">TOP10 の 1都3県比率　{RANKING_DATA.RZ.kantoRatio}％</p>
-          <p className="text-[#888] text-[10px] md:text-xs tracking-wide leading-relaxed mt-2">{RANKING_DATA.RZ.liveDateNote}</p>
+          <p className="text-white/80 text-sm md:text-2xl md:font-semibold md:leading-[1.6] tracking-wide md:tracking-widest mb-1 md:mb-2">{RANKING_DATA.RZ.text}</p>
+          <p className="text-white/70 text-xs md:text-lg font-semibold tracking-[0.04em] md:tracking-[0.06em] leading-relaxed">
+            TOP10 の 1都3県比率　<span className="text-white/85 font-bold">{RANKING_DATA.RZ.kantoRatio}％</span>
+          </p>
+          <p className="text-white/55 text-[10px] md:text-[13px] tracking-wide leading-[1.65] mt-2 md:mt-3 max-w-[320px] md:max-w-[420px]">{RANKING_DATA.RZ.liveDateNote}</p>
         </motion.div>
 
-        <motion.div className="absolute top-14 md:top-1/4 left-0 right-0 md:left-[5%] md:right-auto z-10 max-w-md px-4 text-center md:text-left mx-auto md:mx-0" style={{ opacity: vaundyOpacity, y: vaundyY }}>
-          <h3 className="prefecture-map__artist-name--vaundy text-[#A6FF4D] text-2xl md:text-5xl font-bold tracking-wider mb-2 md:mb-4 drop-shadow-[0_0_10px_rgba(166,255,77,0.5)]">
+        <motion.div className="absolute top-14 md:top-1/4 left-0 right-0 md:left-[5%] md:right-auto z-10 max-w-md md:max-w-lg px-4 text-center md:text-left mx-auto md:mx-0" style={{ opacity: vaundyOpacity, y: vaundyY }}>
+          <h3 className="prefecture-map__artist-name--vaundy text-[#A6FF4D] text-2xl md:text-[3.25rem] font-extrabold md:font-bold tracking-wide md:tracking-wider mb-2 md:mb-4 drop-shadow-[0_0_10px_rgba(166,255,77,0.5)]">
             Vaundy
           </h3>
-          <p className="text-white/80 text-sm md:text-xl font-medium tracking-widest mb-1 md:mb-2">{RANKING_DATA.VD.text}</p>
-          <p className="text-[#a0a0a0] text-xs md:text-sm tracking-widest leading-relaxed">TOP10 の 1都3県比率　{RANKING_DATA.VD.kantoRatio}％</p>
-          <p className="text-[#888] text-[10px] md:text-xs tracking-wide leading-relaxed mt-2">{RANKING_DATA.VD.liveDateNote}</p>
+          <p className="text-white/80 text-sm md:text-2xl md:font-semibold md:leading-[1.6] tracking-wide md:tracking-widest mb-1 md:mb-2">{RANKING_DATA.VD.text}</p>
+          <p className="text-white/70 text-xs md:text-lg font-semibold tracking-[0.04em] md:tracking-[0.06em] leading-relaxed">
+            TOP10 の 1都3県比率　<span className="text-white/85 font-bold">{RANKING_DATA.VD.kantoRatio}％</span>
+          </p>
+          <p className="text-white/55 text-[10px] md:text-[13px] tracking-wide leading-[1.65] mt-2 md:mt-3 max-w-[320px] md:max-w-[420px]">{RANKING_DATA.VD.liveDateNote}</p>
         </motion.div>
 
         <motion.div

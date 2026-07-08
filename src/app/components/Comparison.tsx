@@ -30,7 +30,7 @@ function withAlpha(hex: string, alpha: number) {
 const DATA = {
   FZ: {
     artist: "FRUITS ZIPPER",
-    peakArrival: 4,
+    peakArrival: 2,
     prefectures: 30,
     genderF: 51,
     genderM: 49,
@@ -39,7 +39,7 @@ const DATA = {
   },
   RZ: {
     artist: "RIIZE",
-    peakArrival: 4,
+    peakArrival: 1,
     prefectures: 28,
     genderF: 81,
     genderM: 19,
@@ -48,7 +48,7 @@ const DATA = {
   },
   VD: {
     artist: "Vaundy",
-    peakArrival: 2,
+    peakArrival: 1,
     prefectures: 34,
     genderF: 73,
     genderM: 27,
@@ -408,8 +408,8 @@ function ComparisonCard({
   index: number;
   onOpenPrefecture: () => void;
 }) {
-  const startY = 0.08 + index * 0.04;
-  const endY = 0.2 + index * 0.04;
+  const startY = 0.12 + index * 0.05;
+  const endY = 0.28 + index * 0.05;
 
   const y = useTransform(progress, [startY, endY], [100, 0]);
   const opacity = useTransform(progress, (p: number) => {
@@ -420,11 +420,11 @@ function ComparisonCard({
   const scale = useTransform(progress, [startY, endY], [0.8, 1]);
 
   const endXOffset = index === 0 ? 50 : index === 2 ? -50 : 0;
-  const x = useTransform(progress, [0.9, 1], [0, endXOffset]);
+  const x = useTransform(progress, [0.88, 1], [0, endXOffset]);
 
   const floatY = useTransform(progress, (p: number) => {
-    if (p < 0.7 || p > 0.9) return 0;
-    const t = (p - 0.7) / 0.2;
+    if (p < 0.75 || p > 0.92) return 0;
+    const t = (p - 0.75) / 0.17;
     return Math.sin(t * Math.PI * 4 + index) * 10;
   });
 
@@ -533,11 +533,11 @@ export function Comparison() {
     return () => setModalOpen(false);
   }, [modalArtist, setModalOpen]);
 
-  const titleOpacity = useTransform(scrollYProgress, [0, 0.06, 0.9, 1], [0, 1, 1, 0]);
-  const titleY = useTransform(scrollYProgress, [0, 0.06], [30, 0]);
+  const titleOpacity = useTransform(scrollYProgress, [0, 0.10, 0.85, 0.95, 1], [0, 1, 1, 1, 0]);
+  const titleY = useTransform(scrollYProgress, [0, 0.10, 0.85, 1], [30, 0, 0, -20]);
 
   return (
-    <section ref={containerRef} className="section-comparison relative h-[230vh] bg-[#050505]" style={{ position: "relative" }}>
+    <section ref={containerRef} className="section-comparison relative h-[360vh] md:h-[280vh] bg-[#050505]" style={{ position: "relative" }}>
       <div className="comparison__background sticky top-0 w-full h-[100vh] overflow-y-auto md:overflow-hidden flex flex-col items-center px-4 pt-[120px] pb-8 md:pt-0 md:pb-0 md:justify-center bg-[#050505]">
         <div className="comparison__map-overlay absolute inset-0 bg-gradient-to-b from-[#050505] via-[#030303] to-[#000000] pointer-events-none" />
 

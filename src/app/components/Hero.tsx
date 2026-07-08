@@ -262,12 +262,12 @@ export function Hero() {
   }, [autoProgress]);
 
   const titleOpacityScroll = useTransform(scrollYProgress, (s) => {
-    if (s >= 0.72) return 0;
-    if (s <= 0.62) return 1;
-    return 1 - (s - 0.62) / 0.1;
+    if (s >= 0.76) return 0;
+    if (s <= 0.66) return 1;
+    return 1 - (s - 0.66) / 0.1;
   });
-  const titleY = useTransform(scrollYProgress, [0.62, 0.72], [0, -50]);
-  const titleScale = useTransform(scrollYProgress, [0.62, 0.72], [1, 0.95]);
+  const titleY = useTransform(scrollYProgress, [0.66, 0.76], [0, -50]);
+  const titleScale = useTransform(scrollYProgress, [0.66, 0.76], [1, 0.95]);
 
   const titleOpacityFromDome = useTransform(autoProgress, [0.15, 0.25], [1, 0.6]);
 
@@ -289,7 +289,7 @@ export function Hero() {
     [autoProgress, scrollYProgress],
     ([a, s]: number[]) => {
       const fromAuto = a < 0.15 ? 0 : a > 0.25 ? 1 : (a - 0.15) / 0.1;
-      const fromScroll = s > 0.72 ? 0 : s > 0.62 ? 1 - (s - 0.62) / 0.1 : 1;
+      const fromScroll = s > 0.76 ? 0 : s > 0.66 ? 1 - (s - 0.66) / 0.1 : 1;
       return Math.min(fromAuto, fromScroll);
     }
   );
@@ -337,48 +337,48 @@ export function Hero() {
   );
 
   const nextSectionHeadingOpacity = useTransform(scrollYProgress, (s) => {
-    if (s < 0.62) return 0;
-    if (s <= 0.68) return (s - 0.62) / 0.06;
-    if (s <= 0.96) return 1;
-    if (s <= 0.99) return 1 - (s - 0.96) / 0.03;
+    if (s < 0.64) return 0;
+    if (s <= 0.72) return (s - 0.64) / 0.08;
+    if (s <= 0.94) return 1;
+    if (s <= 0.98) return 1 - (s - 0.94) / 0.04;
     return 0;
   });
 
   const nextSectionHeadingY = useTransform(
     scrollYProgress,
-    [0.62, 0.68, 0.96],
+    [0.64, 0.72, 0.94],
     [28, 0, 0]
   );
 
   const nextSectionHeadingBlur = useTransform(
     scrollYProgress,
-    [0.62, 0.68, 0.96],
+    [0.64, 0.72, 0.94],
     ["blur(14px)", "blur(0px)", "blur(0px)"]
   );
 
   const nextSectionBodyOpacity = useTransform(scrollYProgress, (s) => {
-    if (s < 0.68) return 0;
-    if (s <= 0.74) return (s - 0.68) / 0.06;
-    if (s <= 0.96) return 1;
-    if (s <= 0.99) return 1 - (s - 0.96) / 0.03;
+    if (s < 0.70) return 0;
+    if (s <= 0.78) return (s - 0.70) / 0.08;
+    if (s <= 0.94) return 1;
+    if (s <= 0.98) return 1 - (s - 0.94) / 0.04;
     return 0;
   });
 
   const nextSectionBodyY = useTransform(
     scrollYProgress,
-    [0.68, 0.74, 0.96],
+    [0.70, 0.78, 0.94],
     [22, 0, 0]
   );
 
   const nextSectionBodyBlur = useTransform(
     scrollYProgress,
-    [0.68, 0.74, 0.96],
+    [0.70, 0.78, 0.94],
     ["blur(12px)", "blur(0px)", "blur(0px)"]
   );
 
   const nextSectionNoteOpacity = useTransform(scrollYProgress, (s) => {
-    if (s < 0.82) return 0;
-    if (s <= 0.88) return (s - 0.82) / 0.06;
+    if (s < 0.80) return 0;
+    if (s <= 0.88) return (s - 0.80) / 0.08;
     if (s <= 0.96) return 1;
     if (s <= 0.99) return 1 - (s - 0.96) / 0.03;
     return 0;
@@ -386,13 +386,13 @@ export function Hero() {
 
   const nextSectionNoteY = useTransform(
     scrollYProgress,
-    [0.82, 0.88, 0.96],
+    [0.80, 0.88, 0.96],
     [14, 0, 0]
   );
 
   const nextSectionNoteBlur = useTransform(
     scrollYProgress,
-    [0.82, 0.88, 0.96],
+    [0.80, 0.88, 0.96],
     ["blur(6px)", "blur(0px)", "blur(0px)"]
   );
 
@@ -405,7 +405,7 @@ export function Hero() {
   return (
     <section
       ref={containerRef}
-      className="section-hero h-[560vh] relative w-full bg-[#050505]"
+      className="section-hero h-[600vh] md:h-[520vh] relative w-full bg-[#050505]"
       style={{ fontFamily: "'Noto Sans JP', sans-serif", position: "relative" }}
     >
       <div className="sticky top-0 w-full h-[100vh] overflow-hidden flex flex-col items-center justify-center">

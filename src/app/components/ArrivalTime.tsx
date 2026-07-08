@@ -557,8 +557,8 @@ const S06_DATA = {
 };
 
 const COMPARISON_TIME_LABELS = ["8時間", "7時間", "6時間", "5時間", "4時間", "3時間", "2時間", "1時間", "開演"] as const;
-const COMPARE_TIME_SCROLL_START = 0.57;
-const COMPARE_TIME_SCROLL_END = 0.94;
+const COMPARE_TIME_SCROLL_START = 0.58;
+const COMPARE_TIME_SCROLL_END = 0.92;
 
 function clampProgress(progress: number) {
   return Math.max(0, Math.min(1, progress));
@@ -1269,21 +1269,21 @@ export function ArrivalTime() {
     offset: ["start start", "end end"]
   });
 
-  const introOp = useTransform(scrollYProgress, [0, 0.05, 0.08, 0.1], [0, 1, 1, 0]);
+  const introOp = useTransform(scrollYProgress, [0, 0.06, 0.12, 0.16], [0, 1, 1, 0]);
 
-  const fzSceneOp = useTransform(scrollYProgress, [0.1, 0.12, 0.23, 0.25], [0, 1, 1, 0]);
-  const riizeSceneOp = useTransform(scrollYProgress, [0.25, 0.27, 0.38, 0.40], [0, 1, 1, 0]);
-  const vaundySceneOp = useTransform(scrollYProgress, [0.40, 0.42, 0.53, 0.55], [0, 1, 1, 0]);
+  const fzSceneOp = useTransform(scrollYProgress, [0.08, 0.12, 0.24, 0.28], [0, 1, 1, 0]);
+  const riizeSceneOp = useTransform(scrollYProgress, [0.24, 0.28, 0.40, 0.44], [0, 1, 1, 0]);
+  const vaundySceneOp = useTransform(scrollYProgress, [0.40, 0.44, 0.56, 0.60], [0, 1, 1, 0]);
 
-  const compareOp = useTransform(scrollYProgress, [0.55, 0.57, 0.96, 0.99], [0, 1, 1, 0]);
-  const climaxOp = useTransform(scrollYProgress, [0.97, 0.99, 0.995, 1], [0, 1, 1, 0]);
+  const compareOp = useTransform(scrollYProgress, [0.56, 0.60, 0.94, 0.98], [0, 1, 1, 0]);
+  const climaxOp = useTransform(scrollYProgress, [0.96, 0.98, 0.995, 1], [0, 1, 1, 0]);
 
-  const mainMapOp = useTransform(scrollYProgress, [0, 0.53, 0.55, 0.97, 0.99, 1], [1, 1, 0, 0, 1, 1]);
-  const timelineUiOp = useTransform(scrollYProgress, [0.08, 0.1, 0.53, 0.55], [0, 1, 1, 0]);
+  const mainMapOp = useTransform(scrollYProgress, [0, 0.56, 0.60, 0.96, 0.98, 1], [1, 1, 0, 0, 1, 1]);
+  const timelineUiOp = useTransform(scrollYProgress, [0.08, 0.12, 0.56, 0.60], [0, 1, 1, 0]);
 
-  const fzTimeP = useTransform(scrollYProgress, [0.1, 0.25], [0, 1]);
-  const riizeTimeP = useTransform(scrollYProgress, [0.25, 0.40], [0, 1]);
-  const vaundyTimeP = useTransform(scrollYProgress, [0.40, 0.55], [0, 1]);
+  const fzTimeP = useTransform(scrollYProgress, [0.08, 0.28], [0, 1]);
+  const riizeTimeP = useTransform(scrollYProgress, [0.24, 0.44], [0, 1]);
+  const vaundyTimeP = useTransform(scrollYProgress, [0.40, 0.60], [0, 1]);
   const compareTimeP = useTransform(scrollYProgress, (scrollP) => {
     if (scrollP <= COMPARE_TIME_SCROLL_START) return 0;
     if (scrollP >= COMPARE_TIME_SCROLL_END) return 1;
@@ -1306,9 +1306,9 @@ export function ArrivalTime() {
   });
 
   const indicatorTop = useTransform(scrollYProgress, (p) => {
-    if (p >= 0.1 && p < 0.25) return `${((p - 0.1) / 0.15) * 100}%`;
-    if (p >= 0.25 && p < 0.40) return `${((p - 0.25) / 0.15) * 100}%`;
-    if (p >= 0.40 && p < 0.55) return `${((p - 0.40) / 0.15) * 100}%`;
+    if (p >= 0.08 && p < 0.28) return `${((p - 0.08) / 0.20) * 100}%`;
+    if (p >= 0.24 && p < 0.44) return `${((p - 0.24) / 0.20) * 100}%`;
+    if (p >= 0.40 && p < 0.60) return `${((p - 0.40) / 0.20) * 100}%`;
     return "0%";
   });
 
@@ -1319,7 +1319,7 @@ export function ArrivalTime() {
   return (
     <section
       ref={containerRef}
-      className="section-arrival-time h-[900vh] relative bg-[#050505]"
+      className="section-arrival-time h-[1000vh] md:h-[850vh] relative bg-[#050505]"
       style={{ position: "relative" }}
     >
       <div className="sticky top-0 w-full h-[100vh] overflow-hidden flex items-center justify-center arrival-time__background">

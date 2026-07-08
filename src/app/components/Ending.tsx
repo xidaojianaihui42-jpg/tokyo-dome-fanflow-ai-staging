@@ -17,16 +17,16 @@ const COLORS = {
 
 // スクロール区間キーフレーム
 const T = {
-  cardFade: 0.1,
-  mapScatter: 0.25,
-  toTokyoStart: 0.4,
-  toTokyoEnd: 0.55,
-  domeZoom: 0.7,
-  audienceLight: 0.8,
-  finalMessage: 0.9,
+  cardFade: 0.08,
+  mapScatter: 0.22,
+  toTokyoStart: 0.36,
+  toTokyoEnd: 0.52,
+  domeZoom: 0.66,
+  audienceLight: 0.78,
+  finalMessage: 0.86,
   /** クレジット表示開始（finalMessage の後） */
-  credit: 0.91,
-  creditFull: 0.95,
+  credit: 0.88,
+  creditFull: 0.94,
   creditHold: 0.985,
 };
 
@@ -204,7 +204,7 @@ export function Ending() {
   const creditY = useTransform(scrollYProgress, [T.credit, T.creditFull], [20, 0]);
 
   return (
-    <section ref={containerRef} className="section-ending relative h-[600vh] bg-[#050505]" style={{ position: "relative" }}>
+    <section ref={containerRef} className="section-ending relative h-[620vh] md:h-[520vh] bg-[#050505]" style={{ position: "relative" }}>
       <div className="ending__background sticky top-0 w-full h-[100vh] overflow-hidden flex flex-col items-center justify-center bg-[#050505]">
         
         {/* --- 背景キャンバス層 --- */}

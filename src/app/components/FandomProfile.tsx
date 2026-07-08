@@ -10,6 +10,25 @@ const TOKYO_DOME_POINT = {
 };
 const MAP_OBJECT_POSITION = `center ${Math.round(TOKYO_DOME_POINT.y * 100)}%`;
 
+/** フェードイン → キープ → フェードアウト（区間外は厳密に 0） */
+function sceneOpacity(
+  value: number,
+  fadeInStart: number,
+  fadeInEnd: number,
+  holdEnd: number,
+  fadeOutEnd: number
+) {
+  if (value < fadeInStart || value >= fadeOutEnd) return 0;
+  if (value < fadeInEnd) return (value - fadeInStart) / (fadeInEnd - fadeInStart);
+  if (value <= holdEnd) return 1;
+  return (fadeOutEnd - value) / (fadeOutEnd - holdEnd);
+}
+
+/** 比較シーン中は個別アーティスト用テキストを完全非表示 */
+function isComparisonScroll(value: number) {
+  return value >= 0.56 && value < 0.91;
+}
+
 const ITEMS_COUNT = 300;
 
 const FZ_F = "#00D1FF";
@@ -325,9 +344,9 @@ const AGE_COMPARISON_COLUMNS = [
 ] as const;
 
 function getGlobalComparisonMorph(scroll: number) {
-  if (scroll <= 0.705) return 0;
-  if (scroll >= 0.775) return 1;
-  return (scroll - 0.705) / 0.07;
+  if (scroll <= 0.665) return 0;
+  if (scroll >= 0.835) return 1;
+  return (scroll - 0.665) / 0.17;
 }
 
 function buildCompactMorphParticles(
@@ -402,8 +421,18 @@ function MobileCompactArtistRow({
   male: number;
   morph: MotionValue<number>;
 }) {
-  const ageLabelOp = useTransform(morph, [0, 0.28, 0.55], [1, 1, 0]);
-  const genderLabelOp = useTransform(morph, [0.25, 0.52, 1], [0, 1, 1]);
+  const ageLabelOp = useTransform(morph, (t) => {
+    if (t <= 0.42) return 1;
+    if (t >= 0.55) return 0;
+    return (0.55 - t) / 0.13;
+  });
+  const genderLabelOp = useTransform(morph, (t) => {
+    if (t <= 0.45) return 0;
+    if (t >= 0.58) return 1;
+    return (t - 0.45) / 0.13;
+  });
+  const ageLabelVisibility = useTransform(ageLabelOp, (v) => (v > 0.001 ? "visible" : "hidden"));
+  const genderLabelVisibility = useTransform(genderLabelOp, (v) => (v > 0.001 ? "visible" : "hidden"));
 
   const viewBox = useTransform(morph, (t) => {
     const age = { x: 8, y: -8, w: 244, h: 88 };
@@ -424,7 +453,7 @@ function MobileCompactArtistRow({
   );
 
   return (
-    <article className="fandom-profile__mobile-compact-artist min-h-[152px] max-h-[178px] flex flex-col">
+    <article className="fandom-profile__mobile-compact-artist min-h-[158px] max-h-[184px] flex flex-col">
       <h4
         className="fandom-profile__mobile-compact-artist-name text-[13px] font-bold tracking-[0.1em] mb-1.5 pl-0.5"
         style={{ color }}
@@ -446,12 +475,20 @@ function MobileCompactArtistRow({
         </motion.svg>
       </div>
 
-      <div className="relative h-[30px] mt-0 shrink-0">
-        <motion.div className="grid grid-cols-4 gap-0.5 px-0.5" style={{ opacity: ageLabelOp }}>
+      <div className="relative h-[36px] mt-0 shrink-0">
+        <motion.div className="grid grid-cols-4 gap-0.5 px-0.5 pb-0.5" style={{ opacity: ageLabelOp, visibility: ageLabelVisibility }}>
           {AGE_LABELS.map((label, i) => (
             <div key={label} className="text-center leading-tight">
-              <p className="text-white/70 font-bold font-mono text-[11px]">{label}</p>
-              <p className="text-white/55 font-mono text-[10px] mt-0.5 tabular-nums">
+              <p
+                className="font-bold font-mono text-[13px] tracking-wide"
+                style={{ color: "rgba(255,255,255,0.88)", textShadow: "0 0 8px rgba(0,0,0,0.8)" }}
+              >
+                {label}
+              </p>
+              <p
+                className="font-semibold font-mono text-[12px] mt-1 tabular-nums"
+                style={{ color: "rgba(255,255,255,0.72)", textShadow: "0 0 8px rgba(0,0,0,0.8)" }}
+              >
                 {values[i].toFixed(1)}%
               </p>
             </div>
@@ -460,7 +497,7 @@ function MobileCompactArtistRow({
 
         <motion.div
           className="absolute inset-0 flex flex-col items-center justify-start px-1"
-          style={{ opacity: genderLabelOp }}
+          style={{ opacity: genderLabelOp, visibility: genderLabelVisibility }}
         >
           <p className="text-[11px] font-mono text-white/65 tracking-wide leading-none">
             女性 {female}%
@@ -500,21 +537,31 @@ function MobileDemographicComparisonStack({
   scrollYProgress: MotionValue<number>;
 }) {
   const morph = useTransform(scrollYProgress, (s) => getGlobalComparisonMorph(s));
-  const ageTitleOp = useTransform(morph, [0, 0.32, 0.58], [1, 1, 0]);
-  const genderTitleOp = useTransform(morph, [0.22, 0.48, 1], [0, 1, 1]);
+  const ageTitleOp = useTransform(morph, (t) => {
+    if (t <= 0.42) return 1;
+    if (t >= 0.55) return 0;
+    return (0.55 - t) / 0.13;
+  });
+  const genderTitleOp = useTransform(morph, (t) => {
+    if (t <= 0.45) return 0;
+    if (t >= 0.58) return 1;
+    return (t - 0.45) / 0.13;
+  });
+  const ageTitleVisibility = useTransform(ageTitleOp, (v) => (v > 0.001 ? "visible" : "hidden"));
+  const genderTitleVisibility = useTransform(genderTitleOp, (v) => (v > 0.001 ? "visible" : "hidden"));
 
   return (
     <div className="fandom-profile__mobile-demographic-stack flex flex-col justify-center w-full h-full pt-[108px] pb-3 px-4 pointer-events-none">
       <div className="relative h-7 mb-3 shrink-0">
         <motion.h3
           className="absolute inset-0 flex items-center justify-center text-white text-[17px] font-bold tracking-[0.2em]"
-          style={{ opacity: ageTitleOp }}
+          style={{ opacity: ageTitleOp, visibility: ageTitleVisibility }}
         >
           年代比較
         </motion.h3>
         <motion.h3
           className="absolute inset-0 flex items-center justify-center text-white text-[17px] font-bold tracking-[0.2em]"
-          style={{ opacity: genderTitleOp }}
+          style={{ opacity: genderTitleOp, visibility: genderTitleVisibility }}
         >
           性別比較
         </motion.h3>
@@ -541,7 +588,9 @@ function AgeAxisLabels({
   spacing,
   fontSize = 14,
   percentSize,
-  lineGap = 18,
+  lineGap = 16,
+  labelFill = "rgba(255,255,255,0.88)",
+  percentFill = "rgba(255,255,255,0.72)",
 }: {
   opacity: MotionValue<number>;
   centerX: number;
@@ -551,30 +600,34 @@ function AgeAxisLabels({
   fontSize?: number;
   percentSize?: number;
   lineGap?: number;
+  labelFill?: string;
+  percentFill?: string;
 }) {
-  const pctSize = percentSize ?? fontSize - 2;
+  const pctSize = percentSize ?? Math.max(fontSize - 2, 12);
+  const labelVisibility = useTransform(opacity, (v) => (v > 0.001 ? "visible" : "hidden"));
 
   return (
-    <motion.g style={{ opacity }}>
+    <motion.g style={{ opacity, visibility: labelVisibility }}>
       {AGE_LABELS.map((label, i) => (
         <text
           key={`${centerX}-${label}`}
           x={centerX + (i - 1.5) * spacing}
           y={y}
-          fill="#FFFFFF"
+          fill={labelFill}
           fontSize={fontSize}
           fontWeight="700"
           textAnchor="middle"
           className="font-mono"
-          style={{ filter: "drop-shadow(0 0 6px rgba(0,0,0,0.9))" }}
+          style={{ filter: "drop-shadow(0 0 8px rgba(0,0,0,0.8))" }}
         >
           <tspan x={centerX + (i - 1.5) * spacing}>{label}</tspan>
           <tspan
             x={centerX + (i - 1.5) * spacing}
             dy={lineGap}
-            fill="#A0A0A0"
+            fill={percentFill}
             fontSize={pctSize}
-            fontWeight="500"
+            fontWeight="600"
+            style={{ filter: "drop-shadow(0 0 8px rgba(0,0,0,0.8))" }}
           >
             {values[i].toFixed(1)}%
           </tspan>
@@ -603,35 +656,35 @@ export function FandomProfile() {
 
   useEffect(() => {
     return scrollYProgress.on("change", (latest) => {
-      if (latest >= 0.10 && latest < 0.28) {
+      if (latest >= 0.06 && latest < 0.30) {
         if (currentScene !== "fz") {
           setCurrentScene("fz");
           fzInternalProgress.set(0);
-          animate(fzInternalProgress, 1, { duration: 1.8, ease: "easeInOut", delay: 0.3 });
+          animate(fzInternalProgress, 1, { duration: 2.4, ease: "easeInOut", delay: 0.3 });
         }
-      } else if (latest >= 0.28 && latest < 0.46) {
+      } else if (latest >= 0.24 && latest < 0.48) {
         if (currentScene !== "rz") {
           setCurrentScene("rz");
           rzInternalProgress.set(0);
-          animate(rzInternalProgress, 1, { duration: 1.8, ease: "easeInOut", delay: 0.3 });
+          animate(rzInternalProgress, 1, { duration: 2.4, ease: "easeInOut", delay: 0.3 });
         }
-      } else if (latest >= 0.46 && latest < 0.64) {
+      } else if (latest >= 0.42 && latest < 0.66) {
         if (currentScene !== "vd") {
           setCurrentScene("vd");
           vdInternalProgress.set(0);
-          animate(vdInternalProgress, 1, { duration: 1.8, ease: "easeInOut", delay: 0.3 });
+          animate(vdInternalProgress, 1, { duration: 2.4, ease: "easeInOut", delay: 0.3 });
         }
-      } else if (latest >= 0.64 && latest < 0.74) {
+      } else if (latest >= 0.58 && latest < 0.78) {
         if (currentScene !== "age-comp") {
           setCurrentScene("age-comp");
           ageCompInternalProgress.set(0);
-          animate(ageCompInternalProgress, 1, { duration: 2.0, ease: "easeInOut", delay: 0.3 });
+          animate(ageCompInternalProgress, 1, { duration: 2.6, ease: "easeInOut", delay: 0.3 });
         }
-      } else if (latest >= 0.74 && latest < 0.84) {
+      } else if (latest >= 0.70 && latest < 0.90) {
         if (currentScene !== "gender-comp") {
           setCurrentScene("gender-comp");
           genderCompInternalProgress.set(0);
-          animate(genderCompInternalProgress, 1, { duration: 2.0, ease: "easeInOut", delay: 0.3 });
+          animate(genderCompInternalProgress, 1, { duration: 2.6, ease: "easeInOut", delay: 0.3 });
         }
       }
     });
@@ -645,15 +698,15 @@ export function FandomProfile() {
     const unsubscribeScroll = scrollYProgress.on("change", (scroll) => {
       let adjusted = scroll;
 
-      if (scroll >= 0.10 && scroll < 0.28) {
+      if (scroll >= 0.06 && scroll < 0.30) {
         adjusted = 0.10 + (fzInternalProgress.get() * 0.08);
-      } else if (scroll >= 0.28 && scroll < 0.46) {
+      } else if (scroll >= 0.24 && scroll < 0.48) {
         adjusted = 0.28 + (rzInternalProgress.get() * 0.08);
-      } else if (scroll >= 0.46 && scroll < 0.64) {
+      } else if (scroll >= 0.42 && scroll < 0.66) {
         adjusted = 0.46 + (vdInternalProgress.get() * 0.08);
-      } else if (scroll >= 0.64 && scroll < 0.74) {
+      } else if (scroll >= 0.58 && scroll < 0.78) {
         adjusted = 0.54 + (ageCompInternalProgress.get() * 0.10);
-      } else if (scroll >= 0.74 && scroll < 0.84) {
+      } else if (scroll >= 0.70 && scroll < 0.90) {
         adjusted = 0.64 + (genderCompInternalProgress.get() * 0.10);
       }
 
@@ -662,27 +715,27 @@ export function FandomProfile() {
 
     const unsubscribeFZ = fzInternalProgress.on("change", () => {
       const scroll = scrollYProgress.get();
-      if (scroll >= 0.10 && scroll < 0.28) compositeProgress.set(0.10 + (fzInternalProgress.get() * 0.08));
+      if (scroll >= 0.06 && scroll < 0.30) compositeProgress.set(0.10 + (fzInternalProgress.get() * 0.08));
     });
 
     const unsubscribeRZ = rzInternalProgress.on("change", () => {
       const scroll = scrollYProgress.get();
-      if (scroll >= 0.28 && scroll < 0.46) compositeProgress.set(0.28 + (rzInternalProgress.get() * 0.08));
+      if (scroll >= 0.24 && scroll < 0.48) compositeProgress.set(0.28 + (rzInternalProgress.get() * 0.08));
     });
 
     const unsubscribeVD = vdInternalProgress.on("change", () => {
       const scroll = scrollYProgress.get();
-      if (scroll >= 0.46 && scroll < 0.64) compositeProgress.set(0.46 + (vdInternalProgress.get() * 0.08));
+      if (scroll >= 0.42 && scroll < 0.66) compositeProgress.set(0.46 + (vdInternalProgress.get() * 0.08));
     });
 
     const unsubscribeAgeComp = ageCompInternalProgress.on("change", () => {
       const scroll = scrollYProgress.get();
-      if (scroll >= 0.64 && scroll < 0.74) compositeProgress.set(0.54 + (ageCompInternalProgress.get() * 0.10));
+      if (scroll >= 0.58 && scroll < 0.78) compositeProgress.set(0.54 + (ageCompInternalProgress.get() * 0.10));
     });
 
     const unsubscribeGenderComp = genderCompInternalProgress.on("change", () => {
       const scroll = scrollYProgress.get();
-      if (scroll >= 0.74 && scroll < 0.84) compositeProgress.set(0.64 + (genderCompInternalProgress.get() * 0.10));
+      if (scroll >= 0.70 && scroll < 0.90) compositeProgress.set(0.64 + (genderCompInternalProgress.get() * 0.10));
     });
 
     return () => {
@@ -796,24 +849,36 @@ export function FandomProfile() {
     return arr;
   }, []);
 
-  const introOp = useTransform(scrollYProgress, [0, 0.05, 0.08, 0.12], [0, 1, 1, 0]);
-  const fzTextOp = useTransform(scrollYProgress, [0.08, 0.12, 0.25, 0.28], [0, 1, 1, 0]);
-  const fzAgeLabelOp = useTransform(scrollYProgress, [0.16, 0.18, 0.25, 0.28], [0, 1, 1, 0]);
-  const rzTextOp = useTransform(scrollYProgress, [0.26, 0.29, 0.43, 0.46], [0, 1, 1, 0]);
-  const rzAgeLabelOp = useTransform(scrollYProgress, [0.34, 0.36, 0.43, 0.46], [0, 1, 1, 0]);
-  const vdTextOp = useTransform(scrollYProgress, [0.44, 0.47, 0.61, 0.64], [0, 1, 1, 0]);
-  const vdAgeLabelOp = useTransform(scrollYProgress, [0.52, 0.54, 0.61, 0.64], [0, 1, 1, 0]);
-  const compAgeOp = useTransform(scrollYProgress, [0.62, 0.65, 0.71, 0.74], [0, 1, 1, 0]);
-  const compGenderOp = useTransform(scrollYProgress, [0.72, 0.75, 0.81, 0.84], [0, 1, 1, 0]);
-  const mobileMorphOp = useTransform(scrollYProgress, [0.60, 0.635, 0.835, 0.86], [0, 1, 1, 0]);
-  const silhouetteOp = useTransform(scrollYProgress, [0.82, 0.85, 0.92, 0.95], [0, 1, 1, 0]);
+  const introOp = useTransform(scrollYProgress, [0, 0.06, 0.12, 0.16], [0, 1, 1, 0]);
+  const fzTextBaseOp = useTransform(scrollYProgress, [0.06, 0.10, 0.26, 0.30], [0, 1, 1, 0]);
+  const fzAgeLabelOp = useTransform(scrollYProgress, [0.14, 0.18, 0.26, 0.30], [0, 1, 1, 0]);
+  const rzTextBaseOp = useTransform(scrollYProgress, [0.24, 0.28, 0.44, 0.48], [0, 1, 1, 0]);
+  const rzAgeLabelOp = useTransform(scrollYProgress, [0.32, 0.36, 0.44, 0.48], [0, 1, 1, 0]);
+  const vdTextBaseOp = useTransform(scrollYProgress, [0.42, 0.46, 0.54, 0.58], [0, 1, 1, 0]);
+  const vdAgeLabelOp = useTransform(scrollYProgress, [0.50, 0.54, 0.56, 0.58], [0, 1, 1, 0]);
+
+  const compAgeOp = useTransform(scrollYProgress, (s) => sceneOpacity(s, 0.58, 0.62, 0.73, 0.77));
+  const compGenderOp = useTransform(scrollYProgress, (s) => sceneOpacity(s, 0.75, 0.79, 0.86, 0.90));
+  const compAgeVisibility = useTransform(compAgeOp, (v) => (v > 0.001 ? "visible" : "hidden"));
+  const compGenderVisibility = useTransform(compGenderOp, (v) => (v > 0.001 ? "visible" : "hidden"));
+
+  const artistTextMask = useTransform(scrollYProgress, (s) => (isComparisonScroll(s) ? 0 : 1));
+  const fzTextOp = useTransform([fzTextBaseOp, artistTextMask], ([base, mask]: number[]) => base * mask);
+  const rzTextOp = useTransform([rzTextBaseOp, artistTextMask], ([base, mask]: number[]) => base * mask);
+  const vdTextOp = useTransform([vdTextBaseOp, artistTextMask], ([base, mask]: number[]) => base * mask);
+  const fzTextVisibility = useTransform(fzTextOp, (v) => (v > 0.001 ? "visible" : "hidden"));
+  const rzTextVisibility = useTransform(rzTextOp, (v) => (v > 0.001 ? "visible" : "hidden"));
+  const vdTextVisibility = useTransform(vdTextOp, (v) => (v > 0.001 ? "visible" : "hidden"));
+
+  const mobileMorphOp = useTransform(scrollYProgress, [0.56, 0.60, 0.86, 0.90], [0, 1, 1, 0]);
+  const silhouetteOp = useTransform(scrollYProgress, [0.84, 0.87, 0.94, 0.97], [0, 1, 1, 0]);
 
   const ageNoteOpacity = useTransform(scrollYProgress, (s) => {
     if (s < 0.12) return 0;
     if (s <= 0.14) return (s - 0.12) / 0.02;
-    if (s >= 0.62 && s <= 0.84) return 0;
-    if (s <= 0.82) return 1;
-    if (s <= 0.84) return (0.84 - s) / 0.02;
+    if (s >= 0.56 && s <= 0.91) return 0;
+    if (s <= 0.88) return 1;
+    if (s <= 0.90) return (0.90 - s) / 0.02;
     return 0;
   });
 
@@ -825,7 +890,7 @@ export function FandomProfile() {
     isMobile && (currentScene === "gender-comp" || currentScene === "age-comp");
 
   return (
-    <section ref={containerRef} className="section-fandom-profile relative h-[500vh] bg-[#050505]" style={{ position: "relative" }}>
+    <section ref={containerRef} className="section-fandom-profile relative h-[580vh] md:h-[480vh] bg-[#050505]" style={{ position: "relative" }}>
       <div className="fandom-profile__background sticky top-0 w-full h-[100vh] overflow-hidden">
         <img
           src={tokyoDomeMapNorth}
@@ -865,6 +930,7 @@ export function FandomProfile() {
           className="fandom-profile__artist-spotlight fandom-profile__artist-spotlight--age-comparison absolute inset-0 pointer-events-none hidden md:block"
           style={{
             opacity: compAgeOp,
+            visibility: compAgeVisibility,
             background:
               "radial-gradient(circle at 22% 50%, rgba(0,209,255,0.14), transparent 28%), radial-gradient(circle at 50% 50%, rgba(255,78,219,0.14), transparent 28%), radial-gradient(circle at 78% 50%, rgba(166,255,77,0.12), transparent 28%)"
           }}
@@ -874,6 +940,7 @@ export function FandomProfile() {
           className="fandom-profile__artist-spotlight fandom-profile__artist-spotlight--gender-comparison absolute inset-0 pointer-events-none hidden md:block"
           style={{
             opacity: compGenderOp,
+            visibility: compGenderVisibility,
             background:
               "radial-gradient(circle at 22% 50%, rgba(0,209,255,0.12), transparent 28%), radial-gradient(circle at 50% 50%, rgba(255,78,219,0.12), transparent 28%), radial-gradient(circle at 78% 50%, rgba(166,255,77,0.10), transparent 28%)"
           }}
@@ -942,9 +1009,9 @@ export function FandomProfile() {
 
             {!isMobile && (
               <>
-                <AgeAxisLabels opacity={compAgeOp} centerX={220} y={525} values={AGE_LABEL_VALUES.fruitsZipper} spacing={70} fontSize={11} />
-                <AgeAxisLabels opacity={compAgeOp} centerX={600} y={525} values={AGE_LABEL_VALUES.riize} spacing={70} fontSize={11} />
-                <AgeAxisLabels opacity={compAgeOp} centerX={980} y={525} values={AGE_LABEL_VALUES.vaundy} spacing={70} fontSize={11} />
+                <AgeAxisLabels opacity={compAgeOp} centerX={220} y={528} values={AGE_LABEL_VALUES.fruitsZipper} spacing={70} fontSize={15} percentSize={13} lineGap={16} />
+                <AgeAxisLabels opacity={compAgeOp} centerX={600} y={528} values={AGE_LABEL_VALUES.riize} spacing={70} fontSize={15} percentSize={13} lineGap={16} />
+                <AgeAxisLabels opacity={compAgeOp} centerX={980} y={528} values={AGE_LABEL_VALUES.vaundy} spacing={70} fontSize={15} percentSize={13} lineGap={16} />
               </>
             )}
 
@@ -973,7 +1040,7 @@ export function FandomProfile() {
 
         <motion.div
           className="fandom-profile__people-grid--fruits-zipper absolute z-20 w-full max-w-sm px-5 pt-14 top-0 left-0 right-0 mx-auto flex flex-col items-center text-center md:top-1/4 md:left-[10%] md:right-auto md:mx-0 md:px-0 md:pt-0 md:items-start md:text-left"
-          style={{ opacity: fzTextOp }}
+          style={{ opacity: fzTextOp, visibility: fzTextVisibility }}
         >
           <h3 className="fandom-profile__artist-name--fruits-zipper text-[#00D1FF] text-[28px] md:text-6xl font-bold tracking-widest mb-2 md:mb-4">
             FRUITS ZIPPER
@@ -986,7 +1053,7 @@ export function FandomProfile() {
 
         <motion.div
           className="fandom-profile__people-grid--riize absolute z-20 w-full max-w-sm px-5 pt-14 top-0 left-0 right-0 mx-auto flex flex-col items-center text-center md:top-1/4 md:right-[10%] md:left-auto md:mx-0 md:px-0 md:pt-0 md:items-end md:text-right"
-          style={{ opacity: rzTextOp }}
+          style={{ opacity: rzTextOp, visibility: rzTextVisibility }}
         >
           <h3 className="fandom-profile__artist-name--riize text-[#FF4EDB] text-[28px] md:text-6xl font-bold tracking-widest mb-2 md:mb-4">
             RIIZE
@@ -999,7 +1066,7 @@ export function FandomProfile() {
 
         <motion.div
           className="fandom-profile__people-grid--vaundy absolute z-20 w-full max-w-sm px-5 pt-14 top-0 left-0 right-0 mx-auto flex flex-col items-center text-center md:top-[15%] md:left-[10%] md:right-auto md:mx-0 md:px-0 md:pt-0 md:items-start md:text-left"
-          style={{ opacity: vdTextOp }}
+          style={{ opacity: vdTextOp, visibility: vdTextVisibility }}
         >
           <h3 className="fandom-profile__artist-name--vaundy text-[#A6FF4D] text-[28px] md:text-6xl font-bold tracking-widest mb-2 md:mb-4">
             Vaundy
@@ -1012,7 +1079,7 @@ export function FandomProfile() {
 
         <motion.div
           className="fandom-profile__age-comparison hidden md:flex absolute inset-0 z-20 flex-col pointer-events-none overflow-hidden"
-          style={{ opacity: compAgeOp }}
+          style={{ opacity: compAgeOp, visibility: compAgeVisibility }}
         >
           <div className="shrink-0 pt-[10vh] text-center px-4">
             <h3 className="fandom-profile__age-chart text-white text-3xl font-bold tracking-[0.2em]">
@@ -1033,7 +1100,7 @@ export function FandomProfile() {
 
         <motion.div
           className="fandom-profile__gender-comparison hidden md:flex absolute inset-0 z-20 flex-col pointer-events-none overflow-hidden"
-          style={{ opacity: compGenderOp }}
+          style={{ opacity: compGenderOp, visibility: compGenderVisibility }}
         >
           <div className="shrink-0 pt-[10vh] text-center px-4">
             <h3 className="fandom-profile__gender-comparison-title text-white text-3xl font-bold tracking-[0.2em]">
