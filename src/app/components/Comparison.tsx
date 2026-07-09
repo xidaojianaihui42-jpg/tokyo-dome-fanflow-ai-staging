@@ -12,6 +12,7 @@ import {
   type PrefectureModalArtistKey,
 } from "./PrefectureDetailModal";
 import { useLogoVisibility } from "./LogoVisibilityContext";
+import "../../styles/comparison-responsive.css";
 
 const COLORS = {
   FZ: "#00D1FF",
@@ -173,7 +174,7 @@ function ArrivalTrendDotStack({
 
   return (
     <motion.div style={{ opacity: chartOpacity }} className="w-full">
-      <div className="flex items-end justify-between mb-3 gap-3">
+      <div className="flex items-end justify-between mb-3 gap-3 comparison__arrival-trend-header">
         <div>
           <div
             className="text-[13px] md:text-[15px] font-semibold font-mono mb-1.5 tracking-wider"
@@ -207,7 +208,7 @@ function ArrivalTrendDotStack({
         </div>
       </div>
 
-      <div className="relative rounded-xl overflow-hidden bg-black/25 border border-white/10 px-2 sm:px-3 pt-4 pb-2">
+      <div className="relative rounded-xl overflow-hidden bg-black/25 border border-white/10 px-2 sm:px-3 pt-3 pb-2 comparison__dot-stack-chart">
         <div className="flex items-end justify-between gap-0.5 sm:gap-1">
           {values.map((_, slotIndex) => {
             const count = dotCounts[slotIndex];
@@ -218,11 +219,8 @@ function ArrivalTrendDotStack({
             return (
               <div key={slotIndex} className="flex flex-1 flex-col items-center min-w-0">
                 <div
-                  className="flex flex-col-reverse items-center justify-start w-full"
-                  style={{
-                    height: DOT_STACK.stackHeightPx,
-                    gap: DOT_STACK.gapPx,
-                  }}
+                  className="comparison__dot-stack flex flex-col-reverse items-center justify-start w-full comparison__dot-stack-gap"
+                  style={{ gap: DOT_STACK.gapPx }}
                 >
                   {Array.from({ length: count }).map((_, dotIndex) => (
                     <GlowStackDot
@@ -430,7 +428,7 @@ function ComparisonCard({
 
   return (
     <motion.div
-      className={`comparison__card--${id} flex-1 min-w-[280px] max-w-[360px] bg-gradient-to-br from-white/[0.08] to-white/[0.01] backdrop-blur-2xl border border-white/20 border-b-white/5 border-r-white/5 rounded-2xl p-8 relative overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.2)]`}
+      className={`comparison__card comparison__card--${id} comparison__card--desktop flex-1 min-w-0 max-w-[380px] bg-gradient-to-br from-white/[0.08] to-white/[0.01] backdrop-blur-2xl border border-white/20 border-b-white/5 border-r-white/5 rounded-2xl p-6 lg:p-8 relative overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.2)]`}
       style={{ y: useTransform(() => y.get() + floatY.get()), x, opacity, scale }}
     >
       <div
@@ -442,11 +440,11 @@ function ComparisonCard({
         style={{ backgroundColor: color }}
       />
 
-      <div className={`comparison__artist-name--${id} text-2xl font-bold tracking-widest mb-8`} style={{ color }}>
+      <div className={`comparison__artist-name comparison__card-artist-name comparison__artist-name--${id} text-xl lg:text-2xl font-bold tracking-widest mb-6 lg:mb-8`} style={{ color }}>
         {data.artist}
       </div>
 
-      <div className="flex flex-col gap-7">
+      <div className="comparison__card-inner flex flex-col gap-6 lg:gap-7">
         <div className={`comparison__arrival-trend--${id}`}>
           <ArrivalTrendDotStack
             values={data.arrivalTrend}
@@ -460,7 +458,7 @@ function ComparisonCard({
           type="button"
           onClick={onOpenPrefecture}
           aria-label={`${data.artist}の来訪都道府県地図を見る`}
-          className={`comparison__prefecture-count--${id} w-full text-left rounded-xl px-3 py-2.5 -mx-1 transition-all duration-200 cursor-pointer group border border-transparent hover:border-white/[0.08] hover:bg-white/[0.05]`}
+          className={`comparison__prefecture-count comparison__prefecture-count--${id} comparison__prefecture-count--desktop w-full text-left rounded-xl px-3 py-2 lg:py-2.5 -mx-1 transition-all duration-200 cursor-pointer group border border-transparent hover:border-white/[0.08] hover:bg-white/[0.05]`}
           style={
             {
               "--artist-color": color,
@@ -483,7 +481,7 @@ function ComparisonCard({
               地図で見る →
             </span>
           </div>
-          <div className="text-2xl font-light text-white/88 font-mono tracking-wider flex items-end gap-2 transition-colors group-hover:text-white">
+          <div className="comparison__prefecture-value text-xl lg:text-2xl font-light text-white/88 font-mono tracking-wider flex items-end gap-2 transition-colors group-hover:text-white">
             <AnimatedNumber
               value={data.prefectures}
               progress={progress}
@@ -538,10 +536,10 @@ export function Comparison() {
 
   return (
     <section ref={containerRef} className="section-comparison relative h-[360vh] md:h-[280vh] bg-[#050505]" style={{ position: "relative" }}>
-      <div className="comparison__background sticky top-0 w-full h-[100vh] overflow-y-auto md:overflow-hidden flex flex-col items-center px-4 pt-[120px] pb-8 md:pt-0 md:pb-0 md:justify-center bg-[#050505]">
+      <div className="comparison__background comparison__background--desktop-layout sticky top-0 w-full h-[100vh] overflow-y-auto lg:overflow-hidden flex flex-col items-center px-4 pt-[88px] pb-8 lg:pt-0 lg:pb-0 bg-[#050505]">
         <div className="comparison__map-overlay absolute inset-0 bg-gradient-to-b from-[#050505] via-[#030303] to-[#000000] pointer-events-none" />
 
-        <motion.div className="text-center mb-6 md:mb-12 z-20 shrink-0" style={{ opacity: titleOpacity, y: titleY }}>
+        <motion.div className="comparison__title-block text-center mb-6 lg:mb-0 z-20 shrink-0" style={{ opacity: titleOpacity, y: titleY }}>
           <h2 className="comparison__section-title text-2xl md:text-5xl text-white font-bold tracking-[0.1em] mb-3 md:mb-6">
             3つのライブ、3つの人流
           </h2>
@@ -551,7 +549,7 @@ export function Comparison() {
           </p>
         </motion.div>
 
-        <div className="hidden md:flex comparison__card-container w-full max-w-[1200px] flex-row gap-8 justify-center items-center z-10 px-4 perspective-[1000px]">
+        <div className="hidden lg:flex comparison__card-container comparison__card-container--desktop w-full max-w-[1280px] flex-row justify-center items-stretch z-10 px-4 perspective-[1000px]">
           <ComparisonCard
             id="fruits-zipper"
             data={DATA.FZ}
@@ -578,7 +576,7 @@ export function Comparison() {
           />
         </div>
 
-        <div className="md:hidden comparison__mobile-card-container w-full flex flex-col items-center gap-5 z-10">
+        <div className="lg:hidden comparison__mobile-card-container w-full flex flex-col items-center gap-5 z-10 pb-4">
           <MobileComparisonCard
             id="fruits-zipper"
             data={DATA.FZ}

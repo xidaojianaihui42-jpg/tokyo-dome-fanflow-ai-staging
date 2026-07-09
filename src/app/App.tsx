@@ -6,6 +6,7 @@ import { FandomProfile } from "./components/FandomProfile";
 import { Comparison } from "./components/Comparison";
 import { Ending } from "./components/Ending";
 import { Paywall } from "./components/Paywall";
+import { PaywallPreview } from "./components/PaywallPreview";
 import { NikkeiTrendyLogoFixed } from "./components/NikkeiTrendyLogo";
 import { LogoVisibilityProvider } from "./components/LogoVisibilityContext";
 
@@ -21,7 +22,10 @@ export default function App({ enablePaywall = false }: AppProps) {
         <Hero />
         <PrefectureMap />
         {enablePaywall ? (
-          <Paywall />
+          <>
+            <PaywallPreview />
+            <Paywall />
+          </>
         ) : (
           <>
             <ArrivalTime />
